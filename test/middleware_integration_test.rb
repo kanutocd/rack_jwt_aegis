@@ -99,7 +99,7 @@ class MiddlewareIntegrationTest < Minitest::Test
     @app = Rack::Builder.new do
       use RackJwtAegis::Middleware, {
         jwt_secret: 'test-secret',
-        validate_company_slug: true,
+        validate_pathname_slug: true,
       }
 
       run ->(_env) { [200, {}, ['OK']] }

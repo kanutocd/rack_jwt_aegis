@@ -95,13 +95,13 @@ module RackJwtAegis
     end
 
     def multi_tenant_enabled?
-      @config.validate_subdomain? || @config.validate_company_slug?
+      @config.validate_subdomain? || @config.validate_pathname_slug?
     end
 
     def enabled_features
       features = ['JWT']
       features << 'Subdomain' if @config.validate_subdomain?
-      features << 'CompanySlug' if @config.validate_company_slug?
+      features << 'CompanySlug' if @config.validate_pathname_slug?
       features << 'RBAC' if @config.rbac_enabled?
       features.join(', ')
     end

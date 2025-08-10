@@ -13,7 +13,7 @@ class JwtValidatorTest < Minitest::Test
     payload = @validator.validate(token)
 
     assert_equal 123, payload['user_id']
-    assert_equal 456, payload['company_group_id']
+    assert_equal 456, payload['tenant_id']
   end
 
   def test_rejects_expired_token
@@ -50,8 +50,8 @@ class JwtValidatorTest < Minitest::Test
     )
     validator = RackJwtAegis::JwtValidator.new(config)
 
-    # Missing company_group_domain
-    payload = valid_jwt_payload.tap { |p| p.delete('company_group_domain') }
+    # Missing subdomain
+    payload = valid_jwt_payload.tap { |p| p.delete('subdomain') }
     token = generate_jwt_token(payload)
 
     assert_raises(RackJwtAegis::AuthenticationError) do
@@ -59,14 +59,14 @@ class JwtValidatorTest < Minitest::Test
     end
   end
 
-  def test_validates_company_slugs_format
+  def test_validates_pathname_slugs_format
     config = RackJwtAegis::Configuration.new(
-      basic_config.merge(validate_company_slug: true),
+      basic_config.merge(validate_pathname_slug: true),
     )
     validator = RackJwtAegis::JwtValidator.new(config)
 
-    # company_slugs should be array, not string
-    payload = valid_jwt_payload.merge('company_slugs' => 'invalid-format')
+    # pathname_slugs should be array, not string
+    payload = valid_jwt_payload.merge('pathname_slugs' => 'invalid-format')
     token = generate_jwt_token(payload)
 
     assert_raises(RackJwtAegis::AuthenticationError) do

@@ -6,10 +6,10 @@ module RackJwtAegis
     attr_accessor :jwt_secret, :jwt_algorithm
 
     # Feature toggles
-    attr_accessor :validate_subdomain, :validate_company_slug, :rbac_enabled
+    attr_accessor :validate_subdomain, :validate_pathname_slug, :rbac_enabled
 
     # Multi-tenant settings
-    attr_accessor :company_header_name, :company_slug_pattern, :payload_mapping
+    attr_accessor :tenant_id_header_name, :pathname_slug_pattern, :payload_mapping
 
     # Path management
     attr_accessor :skip_paths
@@ -43,23 +43,23 @@ module RackJwtAegis
     end
 
     def rbac_enabled?
-      config_boolean(rbac_enabled)
+      config_boolean?(rbac_enabled)
     end
 
     def validate_subdomain?
-      config_boolean(validate_subdomain)
+      config_boolean?(validate_subdomain)
     end
 
-    def validate_company_slug?
-      config_boolean(validate_company_slug)
+    def validate_pathname_slug?
+      config_boolean?(validate_pathname_slug)
     end
 
     def debug_mode?
-      config_boolean(debug_mode)
+      config_boolean?(debug_mode)
     end
 
     def cache_write_enabled?
-      config_boolean(cache_write_enabled)
+      config_boolean?(cache_write_enabled)
     end
 
     # Check if path should be skipped
@@ -86,13 +86,13 @@ module RackJwtAegis
     private
 
     # Convert various falsy/truthy values to proper boolean for configuration
-    def config_boolean(value)
+    def config_boolean?(value)
       return false if value.nil?
       return false if value == false
       return false if value == 0
       return false if value == ''
       return false if value.is_a?(String) && value.downcase.strip == 'false'
-      
+
       # Everything else is truthy
       !!value
     end
@@ -100,18 +100,18 @@ module RackJwtAegis
     def set_defaults
       @jwt_algorithm = 'HS256'
       @validate_subdomain = false
-      @validate_company_slug = false
+      @validate_pathname_slug = false
       @rbac_enabled = false
-      @company_header_name = 'X-Company-Group-Id'
-      @company_slug_pattern = %r{^/api/v1/([^/]+)/}
+      @tenant_id_header_name = 'X-Tenant-Id'
+      @pathname_slug_pattern = %r{^/api/v1/([^/]+)/}
       @skip_paths = []
       @cache_write_enabled = false
       @debug_mode = false
       @payload_mapping = {
         user_id: :user_id,
-        company_group_id: :company_group_id,
-        company_group_domain: :company_group_domain,
-        company_slugs: :company_slugs,
+        tenant_id: :tenant_id,
+        subdomain: :subdomain,
+        pathname_slugs: :pathname_slugs,
       }
       @unauthorized_response = { error: 'Authentication required' }
       @forbidden_response = { error: 'Access denied' }
@@ -157,17 +157,17 @@ module RackJwtAegis
     end
 
     def validate_multi_tenant_settings!
-      if validate_company_slug? && company_slug_pattern.nil?
-        raise ConfigurationError, 'company_slug_pattern is required when validate_company_slug is true'
+      if validate_pathname_slug? && pathname_slug_pattern.nil?
+        raise ConfigurationError, 'pathname_slug_pattern is required when validate_pathname_slug is true'
       end
 
-      if validate_subdomain? && !payload_mapping.key?(:company_group_domain)
-        raise ConfigurationError, 'payload_mapping must include :company_group_domain when validate_subdomain is true'
+      if validate_subdomain? && !payload_mapping.key?(:subdomain)
+        raise ConfigurationError, 'payload_mapping must include :subdomain when validate_subdomain is true'
       end
 
-      return unless validate_company_slug? && !payload_mapping.key?(:company_slugs)
+      return unless validate_pathname_slug? && !payload_mapping.key?(:pathname_slugs)
 
-      raise ConfigurationError, 'payload_mapping must include :company_slugs when validate_company_slug is true'
+      raise ConfigurationError, 'payload_mapping must include :pathname_slugs when validate_pathname_slug is true'
     end
   end
 end

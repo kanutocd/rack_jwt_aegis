@@ -5,9 +5,9 @@ module RackJwtAegis
     # Standard environment keys for JWT data
     JWT_PAYLOAD_KEY = 'rack_jwt_aegis.payload'
     USER_ID_KEY = 'rack_jwt_aegis.user_id'
-    COMPANY_GROUP_ID_KEY = 'rack_jwt_aegis.company_group_id'
-    COMPANY_GROUP_DOMAIN_KEY = 'rack_jwt_aegis.company_group_domain'
-    COMPANY_SLUGS_KEY = 'rack_jwt_aegis.company_slugs'
+    TENANT_ID_KEY = 'rack_jwt_aegis.tenant_id'
+    subdomain_KEY = 'rack_jwt_aegis.subdomain'
+    pathname_slugs_KEY = 'rack_jwt_aegis.pathname_slugs'
     AUTHENTICATED_KEY = 'rack_jwt_aegis.authenticated'
 
     def initialize(config)
@@ -39,28 +39,28 @@ module RackJwtAegis
       env[USER_ID_KEY]
     end
 
-    def self.company_group_id(env)
-      env[COMPANY_GROUP_ID_KEY]
+    def self.tenant_id(env)
+      env[TENANT_ID_KEY]
     end
 
-    def self.company_group_domain(env)
-      env[COMPANY_GROUP_DOMAIN_KEY]
+    def self.subdomain(env)
+      env[subdomain_KEY]
     end
 
-    def self.company_slugs(env)
-      env[COMPANY_SLUGS_KEY] || []
+    def self.pathname_slugs(env)
+      env[pathname_slugs_KEY] || []
     end
 
     def self.current_user_id(request)
       user_id(request.env)
     end
 
-    def self.current_company_group_id(request)
-      company_group_id(request.env)
+    def self.current_tenant_id(request)
+      tenant_id(request.env)
     end
 
     def self.has_company_access?(env, company_slug)
-      company_slugs(env).include?(company_slug)
+      pathname_slugs(env).include?(company_slug)
     end
 
     private
@@ -74,27 +74,27 @@ module RackJwtAegis
 
     def set_tenant_context(env, payload)
       # Set company group information
-      if @config.validate_subdomain? || @config.payload_mapping.key?(:company_group_id)
-        company_group_id_key = @config.payload_key(:company_group_id).to_s
-        company_group_id = payload[company_group_id_key]
-        env[COMPANY_GROUP_ID_KEY] = company_group_id
+      if @config.validate_subdomain? || @config.payload_mapping.key?(:tenant_id)
+        tenant_id_key = @config.payload_key(:tenant_id).to_s
+        tenant_id = payload[tenant_id_key]
+        env[TENANT_ID_KEY] = tenant_id
       end
 
       if @config.validate_subdomain?
-        company_domain_key = @config.payload_key(:company_group_domain).to_s
+        company_domain_key = @config.payload_key(:subdomain).to_s
         company_domain = payload[company_domain_key]
-        env[COMPANY_GROUP_DOMAIN_KEY] = company_domain
+        env[subdomain_KEY] = company_domain
       end
 
       # Set company slugs for sub-level tenant access
-      return unless @config.validate_company_slug? || @config.payload_mapping.key?(:company_slugs)
+      return unless @config.validate_pathname_slug? || @config.payload_mapping.key?(:pathname_slugs)
 
-      company_slugs_key = @config.payload_key(:company_slugs).to_s
-      company_slugs = payload[company_slugs_key]
+      pathname_slugs_key = @config.payload_key(:pathname_slugs).to_s
+      pathname_slugs = payload[pathname_slugs_key]
 
       # Ensure it's an array
-      company_slugs = Array(company_slugs) if company_slugs
-      env[COMPANY_SLUGS_KEY] = company_slugs || []
+      pathname_slugs = Array(pathname_slugs) if pathname_slugs
+      env[pathname_slugs_KEY] = pathname_slugs || []
     end
   end
 end

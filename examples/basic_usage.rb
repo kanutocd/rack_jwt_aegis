@@ -14,12 +14,12 @@ class SimpleApp
     # Access authenticated user data
     if RackJwtAegis::RequestContext.authenticated?(env)
       user_id = RackJwtAegis::RequestContext.user_id(env)
-      company_slugs = RackJwtAegis::RequestContext.company_slugs(env)
+      pathname_slugs = RackJwtAegis::RequestContext.pathname_slugs(env)
 
       response = {
         message: 'Hello authenticated user!',
         user_id: user_id,
-        company_access: company_slugs,
+        company_access: pathname_slugs,
       }
 
       [200, { 'Content-Type' => 'application/json' }, [JSON.generate(response)]]
@@ -36,7 +36,7 @@ Rack::Builder.new do
 
     # Multi-tenant features
     validate_subdomain: true,
-    validate_company_slug: true,
+    validate_pathname_slug: true,
 
     # Skip authentication for health check
     skip_paths: ['/health'],
@@ -51,9 +51,9 @@ end
 # 3. Generate a demo JWT token
 payload = {
   'user_id' => 123,
-  'company_group_id' => 456,
-  'company_group_domain' => 'acme-corp.example.com',
-  'company_slugs' => ['widgets-division', 'services-division'],
+  'tenant_id' => 456,
+  'subdomain' => 'acme-corp.example.com',
+  'pathname_slugs' => ['widgets-division', 'services-division'],
   'exp' => Time.now.to_i + 3600, # 1 hour from now
 }
 

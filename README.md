@@ -42,7 +42,7 @@ gem install rack_jwt_aegis
 # config/application.rb
 config.middleware.insert_before 0, RackJwtAegis::Middleware, {
   jwt_secret: ENV['JWT_SECRET'],
-  company_header_name: 'X-Company-Group-Id',
+  tenant_id_header_name: 'X-Tenant-Id',
   skip_paths: ['/api/v1/login', '/api/v1/refresh', '/health']
 }
 ```
@@ -54,7 +54,7 @@ require 'rack_jwt_aegis'
 
 use RackJwtAegis::Middleware, {
   jwt_secret: ENV['JWT_SECRET'],
-  company_header_name: 'X-Company-Group-Id',
+  tenant_id_header_name: 'X-Tenant-Id',
   skip_paths: ['/login', '/health']
 }
 ```
@@ -68,7 +68,7 @@ app = Rack::Builder.new do
   use RackJwtAegis::Middleware, {
     jwt_secret: ENV['JWT_SECRET'],
     validate_subdomain: true,
-    validate_company_slug: true
+    validate_pathname_slug: true
   }
 
   run YourApp.new
@@ -86,13 +86,13 @@ RackJwtAegis::Middleware.new(app, {
   jwt_algorithm: 'HS256',  # Default: 'HS256'
 
   # Multi-Tenant Settings
-  company_header_name: 'X-Company-Group-Id',  # Default: 'X-Company-Group-Id'
+  tenant_id_header_name: 'X-Tenant-Id',  # Default: 'X-Tenant-Id'
   validate_subdomain: true,     # Default: false
-  validate_company_slug: true,  # Default: false
+  validate_pathname_slug: true,  # Default: false
 
   # Path Configuration
   skip_paths: ['/health', '/api/v1/login', '/api/v1/refresh'],
-  company_slug_pattern: /^\/api\/v1\/([^\/]+)\//,  # Default pattern
+  pathname_slug_pattern: /^\/api\/v1\/([^\/]+)\//,  # Default pattern
 
   # Response Customization
   unauthorized_response: { error: 'Authentication required' },
@@ -118,9 +118,9 @@ RackJwtAegis::Middleware.new(app, {
   # Flexible Payload Mapping
   payload_mapping: {
     user_id: :sub,                    # Map 'sub' claim to user_id
-    company_group_id: :company_id,    # Map 'company_id' claim
-    company_group_domain: :domain,    # Map 'domain' claim
-    company_slugs: :accessible_companies  # Map array of accessible companies
+    tenant_id: :company_id,    # Map 'company_id' claim
+    subdomain: :domain,    # Map 'domain' claim
+    pathname_slugs: :accessible_companies  # Map array of accessible companies
   },
 
   # Custom Tenant Extraction
@@ -147,15 +147,15 @@ config.validate_subdomain = true
 
 ```ruby
 # Validates that the requested company slug is accessible to the user
-config.validate_company_slug = true
-config.company_slug_pattern = /^\/api\/v1\/([^\/]+)\//
+config.validate_pathname_slug = true
+config.pathname_slug_pattern = /^\/api\/v1\/([^\/]+)\//
 ```
 
 ### Header-Based Validation
 
 ```ruby
-# Validates the X-Company-Group-Id header against JWT payload
-config.company_header_name = 'X-Company-Group-Id'
+# Validates the X-Tenant-Id header against JWT payload
+config.tenant_id_header_name = 'X-Tenant-Id'
 ```
 
 ## JWT Payload Structure
@@ -165,9 +165,9 @@ The middleware expects JWT payloads with the following structure:
 ```json
 {
   "user_id": 12345,
-  "company_group_id": 67890,
-  "company_group_domain": "acme.example.com",
-  "company_slugs": ["acme", "acme-corp"],
+  "tenant_id": 67890,
+  "subdomain": "acme.example.com",
+  "pathname_slugs": ["acme", "acme-corp"],
   "roles": ["admin", "user"],
   "exp": 1640995200,
   "iat": 1640991600

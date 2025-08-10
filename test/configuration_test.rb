@@ -15,7 +15,7 @@ class ConfigurationTest < Minitest::Test
     assert_equal 'test-secret', config.jwt_secret
     assert_equal 'HS256', config.jwt_algorithm
     refute_predicate config, :validate_subdomain?
-    refute_predicate config, :validate_company_slug?
+    refute_predicate config, :validate_pathname_slug?
     refute_predicate config, :rbac_enabled?
   end
 
@@ -24,10 +24,10 @@ class ConfigurationTest < Minitest::Test
       jwt_secret: 'test-secret',
       jwt_algorithm: 'HS512',
       validate_subdomain: true,
-      validate_company_slug: true,
+      validate_pathname_slug: true,
       rbac_enabled: true,
-      company_header_name: 'X-Custom-Header',
-      company_slug_pattern: %r{^/custom/([^/]+)/},
+      tenant_id_header_name: 'X-Custom-Header',
+      pathname_slug_pattern: %r{^/custom/([^/]+)/},
       skip_paths: ['/health', '/status'],
       cache_store: :redis,
       cache_options: { url: 'redis://localhost:6379' },
@@ -43,10 +43,10 @@ class ConfigurationTest < Minitest::Test
     assert_equal 'test-secret', config.jwt_secret
     assert_equal 'HS512', config.jwt_algorithm
     assert_predicate config, :validate_subdomain?
-    assert_predicate config, :validate_company_slug?
+    assert_predicate config, :validate_pathname_slug?
     assert_predicate config, :rbac_enabled?
-    assert_equal 'X-Custom-Header', config.company_header_name
-    assert_equal(%r{^/custom/([^/]+)/}, config.company_slug_pattern)
+    assert_equal 'X-Custom-Header', config.tenant_id_header_name
+    assert_equal(%r{^/custom/([^/]+)/}, config.pathname_slug_pattern)
     assert_equal ['/health', '/status'], config.skip_paths
     assert_equal :redis, config.cache_store
     assert_equal({ url: 'redis://localhost:6379' }, config.cache_options)
@@ -61,17 +61,17 @@ class ConfigurationTest < Minitest::Test
     config = RackJwtAegis::Configuration.new(jwt_secret: 'test-secret')
 
     assert_equal 'HS256', config.jwt_algorithm
-    assert_equal 'X-Company-Group-Id', config.company_header_name
-    assert_equal(%r{^/api/v1/([^/]+)/}, config.company_slug_pattern)
+    assert_equal 'X-Tenant-Id', config.tenant_id_header_name
+    assert_equal(%r{^/api/v1/([^/]+)/}, config.pathname_slug_pattern)
     assert_empty config.skip_paths
     refute_predicate config, :cache_write_enabled?
     refute_predicate config, :debug_mode?
 
     expected_payload_mapping = {
       user_id: :user_id,
-      company_group_id: :company_group_id,
-      company_group_domain: :company_group_domain,
-      company_slugs: :company_slugs,
+      tenant_id: :tenant_id,
+      subdomain: :subdomain,
+      pathname_slugs: :pathname_slugs,
     }
 
     assert_equal expected_payload_mapping, config.payload_mapping
@@ -199,15 +199,15 @@ class ConfigurationTest < Minitest::Test
   end
 
   # Multi-Tenant Settings Validation Tests
-  def test_validate_company_slug_without_pattern
+  def test_validate_pathname_slug_without_pattern
     error = assert_raises(RackJwtAegis::ConfigurationError) do
       RackJwtAegis::Configuration.new(
         jwt_secret: 'test-secret',
-        validate_company_slug: true,
-        company_slug_pattern: nil,
+        validate_pathname_slug: true,
+        pathname_slug_pattern: nil,
       )
     end
-    assert_match(/company_slug_pattern is required when validate_company_slug is true/, error.message)
+    assert_match(/pathname_slug_pattern is required when validate_pathname_slug is true/, error.message)
   end
 
   def test_validate_subdomain_without_payload_mapping
@@ -216,21 +216,21 @@ class ConfigurationTest < Minitest::Test
       RackJwtAegis::Configuration.new(
         jwt_secret: 'test-secret',
         validate_subdomain: true,
-        payload_mapping: { user_id: :user_id }, # Missing company_group_domain
+        payload_mapping: { user_id: :user_id }, # Missing subdomain
       )
     end
-    assert_match(/payload_mapping must include :company_group_domain when validate_subdomain is true/, error.message)
+    assert_match(/payload_mapping must include :subdomain when validate_subdomain is true/, error.message)
   end
 
-  def test_validate_company_slug_without_payload_mapping
+  def test_validate_pathname_slug_without_payload_mapping
     error = assert_raises(RackJwtAegis::ConfigurationError) do
       RackJwtAegis::Configuration.new(
         jwt_secret: 'test-secret',
-        validate_company_slug: true,
-        payload_mapping: { user_id: :user_id }, # Missing company_slugs
+        validate_pathname_slug: true,
+        payload_mapping: { user_id: :user_id }, # Missing pathname_slugs
       )
     end
-    assert_match(/payload_mapping must include :company_slugs when validate_company_slug is true/, error.message)
+    assert_match(/payload_mapping must include :pathname_slugs when validate_pathname_slug is true/, error.message)
   end
 
   # Skip Path Tests
@@ -296,16 +296,16 @@ class ConfigurationTest < Minitest::Test
       jwt_secret: 'test-secret',
       payload_mapping: {
         user_id: :sub,
-        company_group_id: :company_id,
-        company_group_domain: :domain,
-        company_slugs: :accessible_companies,
+        tenant_id: :company_id,
+        subdomain: :domain,
+        pathname_slugs: :accessible_companies,
       },
     )
 
     assert_equal :sub, config.payload_key(:user_id)
-    assert_equal :company_id, config.payload_key(:company_group_id)
-    assert_equal :domain, config.payload_key(:company_group_domain)
-    assert_equal :accessible_companies, config.payload_key(:company_slugs)
+    assert_equal :company_id, config.payload_key(:tenant_id)
+    assert_equal :domain, config.payload_key(:subdomain)
+    assert_equal :accessible_companies, config.payload_key(:pathname_slugs)
   end
 
   def test_payload_key_with_missing_mapping
@@ -329,7 +329,7 @@ class ConfigurationTest < Minitest::Test
     config = RackJwtAegis::Configuration.new(
       jwt_secret: 'test-secret',
       validate_subdomain: true,
-      validate_company_slug: false,
+      validate_pathname_slug: false,
       rbac_enabled: true,
       cache_store: :memory, # Required since rbac_enabled is true
       debug_mode: false,
@@ -337,7 +337,7 @@ class ConfigurationTest < Minitest::Test
     )
 
     assert_predicate config, :validate_subdomain?
-    refute_predicate config, :validate_company_slug?
+    refute_predicate config, :validate_pathname_slug?
     assert_predicate config, :rbac_enabled?
     refute_predicate config, :debug_mode?
     assert_predicate config, :cache_write_enabled?
@@ -347,14 +347,14 @@ class ConfigurationTest < Minitest::Test
     config = RackJwtAegis::Configuration.new(
       jwt_secret: 'test-secret',
       validate_subdomain: nil,
-      validate_company_slug: false,
+      validate_pathname_slug: false,
       rbac_enabled: 0,
       debug_mode: '',
       cache_write_enabled: nil,
     )
 
     refute_predicate config, :validate_subdomain?
-    refute_predicate config, :validate_company_slug?
+    refute_predicate config, :validate_pathname_slug?
     refute_predicate config, :rbac_enabled?
     refute_predicate config, :debug_mode?
     refute_predicate config, :cache_write_enabled?
@@ -364,7 +364,7 @@ class ConfigurationTest < Minitest::Test
     config = RackJwtAegis::Configuration.new(
       jwt_secret: 'test-secret',
       validate_subdomain: 'yes',
-      validate_company_slug: 1,
+      validate_pathname_slug: 1,
       rbac_enabled: 'true',
       cache_store: :memory, # Required since rbac_enabled is 'true' (truthy)
       debug_mode: [1],
@@ -372,7 +372,7 @@ class ConfigurationTest < Minitest::Test
     )
 
     assert_predicate config, :validate_subdomain?
-    assert_predicate config, :validate_company_slug?
+    assert_predicate config, :validate_pathname_slug?
     assert_predicate config, :rbac_enabled?
     assert_predicate config, :debug_mode?
     assert_predicate config, :cache_write_enabled?
@@ -387,7 +387,7 @@ class ConfigurationTest < Minitest::Test
     assert config.jwt_secret
     assert_equal 'HS256', config.jwt_algorithm
     refute_predicate config, :validate_subdomain?
-    refute_predicate config, :validate_company_slug?
+    refute_predicate config, :validate_pathname_slug?
     refute_predicate config, :rbac_enabled?
     assert_empty config.skip_paths
   end
@@ -396,14 +396,14 @@ class ConfigurationTest < Minitest::Test
     config = RackJwtAegis::Configuration.new(
       jwt_secret: 'test-secret',
       validate_subdomain: true,
-      validate_company_slug: true,
-      company_header_name: 'X-Company-Group-Id',
+      validate_pathname_slug: true,
+      tenant_id_header_name: 'X-Tenant-Id',
       skip_paths: ['/health', '/api/v1/login'],
     )
 
     assert_predicate config, :validate_subdomain?
-    assert_predicate config, :validate_company_slug?
-    assert_equal 'X-Company-Group-Id', config.company_header_name
+    assert_predicate config, :validate_pathname_slug?
+    assert_equal 'X-Tenant-Id', config.tenant_id_header_name
     assert config.skip_path?('/health')
     assert config.skip_path?('/api/v1/login')
     refute_predicate config, :rbac_enabled?
@@ -413,7 +413,7 @@ class ConfigurationTest < Minitest::Test
     config = RackJwtAegis::Configuration.new(
       jwt_secret: 'test-secret',
       validate_subdomain: true,
-      validate_company_slug: true,
+      validate_pathname_slug: true,
       rbac_enabled: true,
       cache_store: :redis,
       cache_options: { url: 'redis://localhost:6379' },
@@ -421,7 +421,7 @@ class ConfigurationTest < Minitest::Test
     )
 
     assert_predicate config, :validate_subdomain?
-    assert_predicate config, :validate_company_slug?
+    assert_predicate config, :validate_pathname_slug?
     assert_predicate config, :rbac_enabled?
     assert_equal :redis, config.cache_store
     assert_predicate config, :cache_write_enabled?
@@ -463,19 +463,19 @@ class ConfigurationTest < Minitest::Test
     config = RackJwtAegis::Configuration.new(
       jwt_secret: 'test-secret',
       validate_subdomain: true,
-      validate_company_slug: true,
+      validate_pathname_slug: true,
       payload_mapping: {
         user_id: :sub,
-        company_group_id: :org_id,
-        company_group_domain: :tenant_domain,
-        company_slugs: :accessible_orgs,
+        tenant_id: :org_id,
+        subdomain: :tenant_domain,
+        pathname_slugs: :accessible_orgs,
       },
     )
 
     assert_equal :sub, config.payload_key(:user_id)
-    assert_equal :org_id, config.payload_key(:company_group_id)
-    assert_equal :tenant_domain, config.payload_key(:company_group_domain)
-    assert_equal :accessible_orgs, config.payload_key(:company_slugs)
+    assert_equal :org_id, config.payload_key(:tenant_id)
+    assert_equal :tenant_domain, config.payload_key(:subdomain)
+    assert_equal :accessible_orgs, config.payload_key(:pathname_slugs)
   end
 
   def test_custom_response_configuration

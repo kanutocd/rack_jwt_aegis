@@ -64,11 +64,11 @@ module RackJwtAegis
 
       # Multi-tenant validation requirements
       if @config.validate_subdomain?
-        required_claims << @config.payload_key(:company_group_id)
-        required_claims << @config.payload_key(:company_group_domain)
+        required_claims << @config.payload_key(:tenant_id)
+        required_claims << @config.payload_key(:subdomain)
       end
 
-      required_claims << @config.payload_key(:company_slugs) if @config.validate_company_slug?
+      required_claims << @config.payload_key(:pathname_slugs) if @config.validate_pathname_slug?
 
       missing_claims = required_claims.select { |claim| payload[claim.to_s].nil? }
 
@@ -87,27 +87,27 @@ module RackJwtAegis
 
       # Company group ID should be numeric or string (if present)
       if @config.validate_subdomain?
-        company_group_id_key = @config.payload_key(:company_group_id).to_s
-        if payload[company_group_id_key] && !payload[company_group_id_key].is_a?(Numeric) && !payload[company_group_id_key].is_a?(String)
-          raise AuthenticationError, 'Invalid company_group_id format in JWT payload'
+        tenant_id_key = @config.payload_key(:tenant_id).to_s
+        if payload[tenant_id_key] && !payload[tenant_id_key].is_a?(Numeric) && !payload[tenant_id_key].is_a?(String)
+          raise AuthenticationError, 'Invalid tenant_id format in JWT payload'
         end
       end
 
       # Company group domain should be string (if present)
       if @config.validate_subdomain?
-        company_domain_key = @config.payload_key(:company_group_domain).to_s
+        company_domain_key = @config.payload_key(:subdomain).to_s
         if payload[company_domain_key] && !payload[company_domain_key].is_a?(String)
-          raise AuthenticationError, 'Invalid company_group_domain format in JWT payload'
+          raise AuthenticationError, 'Invalid subdomain format in JWT payload'
         end
       end
 
       # Company slugs should be array (if present)
-      return unless @config.validate_company_slug?
+      return unless @config.validate_pathname_slug?
 
-      company_slugs_key = @config.payload_key(:company_slugs).to_s
-      return unless payload[company_slugs_key] && !payload[company_slugs_key].is_a?(Array)
+      pathname_slugs_key = @config.payload_key(:pathname_slugs).to_s
+      return unless payload[pathname_slugs_key] && !payload[pathname_slugs_key].is_a?(Array)
 
-      raise AuthenticationError, 'Invalid company_slugs format in JWT payload - must be array'
+      raise AuthenticationError, 'Invalid pathname_slugs format in JWT payload - must be array'
     end
   end
 end

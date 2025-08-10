@@ -40,7 +40,7 @@ class RackJwtAegisTest < Minitest::Test
     config = RackJwtAegis::Configuration.new(
       basic_config.merge(
         validate_subdomain: true,
-        validate_company_slug: true,
+        validate_pathname_slug: true,
         rbac_enabled: true,
         cache_store: :memory,
         cache_write_enabled: true,
@@ -48,7 +48,7 @@ class RackJwtAegisTest < Minitest::Test
     )
 
     assert_predicate config, :validate_subdomain?
-    assert_predicate config, :validate_company_slug?
+    assert_predicate config, :validate_pathname_slug?
     assert_predicate config, :rbac_enabled?
   end
 end

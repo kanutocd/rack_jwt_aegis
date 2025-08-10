@@ -8,8 +8,8 @@ module RackJwtAegis
 
     def validate(request, payload)
       validate_subdomain(request, payload) if @config.validate_subdomain?
-      validate_company_slug(request, payload) if @config.validate_company_slug?
-      validate_company_header(request, payload) if @config.company_header_name
+      validate_pathname_slug(request, payload) if @config.validate_pathname_slug?
+      validate_company_header(request, payload) if @config.tenant_id_header_name
     end
 
     private
@@ -23,11 +23,11 @@ module RackJwtAegis
       request_subdomain = extract_subdomain(request_host)
 
       # Get JWT domain claim
-      jwt_domain_key = @config.payload_key(:company_group_domain).to_s
+      jwt_domain_key = @config.payload_key(:subdomain).to_s
       jwt_domain = payload[jwt_domain_key]
 
       if jwt_domain.nil? || jwt_domain.empty?
-        raise AuthorizationError, 'JWT payload missing company_group_domain for subdomain validation'
+        raise AuthorizationError, 'JWT payload missing subdomain for subdomain validation'
       end
 
       # Extract subdomain from JWT domain
@@ -41,18 +41,18 @@ module RackJwtAegis
     end
 
     # Level 2 Multi-Tenant: Sub-level tenant (Company) validation via URL path
-    def validate_company_slug(request, payload)
+    def validate_pathname_slug(request, payload)
       # Extract company slug from URL path
       company_slug = extract_company_slug_from_path(request.path)
 
       return if company_slug.nil? # No company slug in path
 
       # Get accessible company slugs from JWT
-      jwt_slugs_key = @config.payload_key(:company_slugs).to_s
+      jwt_slugs_key = @config.payload_key(:pathname_slugs).to_s
       accessible_slugs = payload[jwt_slugs_key]
 
       if accessible_slugs.nil? || !accessible_slugs.is_a?(Array) || accessible_slugs.empty?
-        raise AuthorizationError, 'JWT payload missing or invalid company_slugs for company access validation'
+        raise AuthorizationError, 'JWT payload missing or invalid pathname_slugs for company access validation'
       end
 
       # Check if requested company slug is in user's accessible list
@@ -64,22 +64,22 @@ module RackJwtAegis
 
     # Company Group header validation (additional security layer)
     def validate_company_header(request, payload)
-      header_name = "HTTP_#{@config.company_header_name.upcase.tr('-', '_')}"
+      header_name = "HTTP_#{@config.tenant_id_header_name.upcase.tr('-', '_')}"
       header_value = request.get_header(header_name)
 
       return if header_value.nil? # Header not present, skip validation
 
       # Get company group ID from JWT
-      jwt_company_group_key = @config.payload_key(:company_group_id).to_s
-      jwt_company_group_id = payload[jwt_company_group_key]
+      jwt_company_group_key = @config.payload_key(:tenant_id).to_s
+      jwt_tenant_id = payload[jwt_company_group_key]
 
-      if jwt_company_group_id.nil?
-        raise AuthorizationError, 'JWT payload missing company_group_id for header validation'
+      if jwt_tenant_id.nil?
+        raise AuthorizationError, 'JWT payload missing tenant_id for header validation'
       end
 
       # Normalize values for comparison (both as strings)
       header_value_str = header_value.to_s
-      jwt_value_str = jwt_company_group_id.to_s
+      jwt_value_str = jwt_tenant_id.to_s
 
       return if header_value_str == jwt_value_str
 
@@ -110,7 +110,7 @@ module RackJwtAegis
       return nil if path.nil? || path.empty?
 
       # Use configured pattern to extract company slug
-      match = @config.company_slug_pattern.match(path)
+      match = @config.pathname_slug_pattern.match(path)
       return nil unless match && match[1]
 
       # Return captured group (company slug)

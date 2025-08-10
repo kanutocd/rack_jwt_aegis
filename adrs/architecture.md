@@ -119,7 +119,7 @@ Existing JWT authentication middleware gems for Ruby/Rack applications lack inte
 **Process:**
 
 - Extract subdomain from request host
-- Compare against JWT payload `company_group_domain`
+- Compare against JWT payload `subdomain`
 - Reject requests where subdomain doesn't match JWT tenant
 
 ```ruby
@@ -127,7 +127,7 @@ Existing JWT authentication middleware gems for Ruby/Rack applications lack inte
 {
   validate_subdomain: true,
   payload_mapping: {
-    company_group_domain: :domain  # JWT claim mapping
+    subdomain: :domain  # JWT claim mapping
   }
 }
 ```
@@ -140,16 +140,16 @@ Existing JWT authentication middleware gems for Ruby/Rack applications lack inte
 **Process:**
 
 - Extract company slug from URL path using regex pattern
-- Compare against JWT payload `company_slugs` array
+- Compare against JWT payload `pathname_slugs` array
 - Reject if requested company not in user's accessible list
 
 ```ruby
 # Configuration
 {
-  validate_company_slug: true,
-  company_slug_pattern: /^\/api\/v1\/([^\/]+)\//,
+  validate_pathname_slug: true,
+  pathname_slug_pattern: /^\/api\/v1\/([^\/]+)\//,
   payload_mapping: {
-    company_slugs: :accessible_companies
+    pathname_slugs: :accessible_companies
   }
 }
 ```
@@ -279,20 +279,20 @@ RackJwtBastion::Middleware.new(app, {
 
   # Optional Features (Default: disabled)
   validate_subdomain: false,
-  validate_company_slug: false,
+  validate_pathname_slug: false,
   rbac_enabled: false,
 
   # Path Management
   skip_paths: ['/health', '/login'],
-  company_slug_pattern: /^\/api\/v1\/([^\/]+)\//,
+  pathname_slug_pattern: /^\/api\/v1\/([^\/]+)\//,
 
   # Multi-Tenant Configuration
-  company_header_name: 'X-Company-Group-Id',
+  tenant_id_header_name: 'X-Tenant-Id',
   payload_mapping: {
     user_id: :sub,
-    company_group_id: :company_id,
-    company_group_domain: :domain,
-    company_slugs: :accessible_companies
+    tenant_id: :company_id,
+    subdomain: :domain,
+    pathname_slugs: :accessible_companies
   },
 
   # RBAC Cache Configuration
@@ -379,8 +379,8 @@ use RackJwtBastion::Middleware, {
 use RackJwtBastion::Middleware, {
   jwt_secret: ENV['JWT_SECRET'],
   validate_subdomain: true,
-  validate_company_slug: true,
-  company_header_name: 'X-Company-Group-Id'
+  validate_pathname_slug: true,
+  tenant_id_header_name: 'X-Tenant-Id'
 }
 ```
 
@@ -391,7 +391,7 @@ use RackJwtBastion::Middleware, {
 use RackJwtBastion::Middleware, {
   jwt_secret: ENV['JWT_SECRET'],
   validate_subdomain: true,
-  validate_company_slug: true,
+  validate_pathname_slug: true,
   rbac_enabled: true,
   cache_store: :redis,
   cache_write_enabled: true

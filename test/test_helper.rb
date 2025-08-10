@@ -15,9 +15,9 @@ module TestHelpers
   def valid_jwt_payload
     {
       'user_id' => 123,
-      'company_group_id' => 456,
-      'company_group_domain' => 'acme-corp.example.com',
-      'company_slugs' => ['widgets-division', 'services-division'],
+      'tenant_id' => 456,
+      'subdomain' => 'acme-corp.example.com',
+      'pathname_slugs' => ['widgets-division', 'services-division'],
       'roles' => ['admin'],
       'exp' => Time.now.to_i + 3600, # 1 hour from now
       'iat' => Time.now.to_i,
