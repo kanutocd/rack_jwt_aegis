@@ -1,0 +1,88 @@
+name: Bug Report
+description: File a bug report to help us improve rack_jwt_aegis
+title: "[Bug]: "
+labels: ["bug", "triage"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report!
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Also tell us, what did you expect to happen?
+      placeholder: Tell us what you see!
+      value: "A bug happened!"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: version
+    attributes:
+      label: Version
+      description: What version of rack_jwt_aegis are you running?
+      options:
+        - 0.0.1
+        - 0.1.0 (Default)
+        - 1.0.0
+        - Other (please specify in description)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: ruby-version
+    attributes:
+      label: Ruby Version
+      description: What version of Ruby are you running?
+      options:
+        - Ruby 3.2
+        - Ruby 3.3 (Default)
+        - Ruby 3.4
+        - Other (please specify in description)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: framework
+    attributes:
+      label: Framework
+      description: What framework are you using?
+      options:
+        - Rails
+        - Sinatra
+        - Pure Rack
+        - Other (please specify in description)
+    validations:
+      required: true
+
+  - type: textarea
+    id: config
+    attributes:
+      label: Configuration
+      description: Please share your middleware configuration (remove any sensitive data)
+      render: ruby
+      placeholder: |
+        use RackJwtAegis::Middleware, {
+          jwt_secret: ENV['JWT_SECRET'],
+          validate_subdomain: true,
+          # ... other options
+        }
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log output
+      description: Please copy and paste any relevant log output (set debug_mode: true for more details)
+      render: shell
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Code of Conduct
+      description: By submitting this issue, you agree to follow our [Code of Conduct](https://github.com/kanutocd/rack_jwt_aegis/blob/main/CODE_OF_CONDUCT.md)
+      options:
+        - label: I agree to follow this project's Code of Conduct
+          required: true

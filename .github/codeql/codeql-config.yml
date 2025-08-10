@@ -1,0 +1,15 @@
+name: "rack_jwt_aegis CodeQL Config"
+
+disable-default-queries: false
+
+queries:
+  - uses: security-and-quality
+  - uses: security-extended
+
+paths-ignore:
+  - "**/*.md"
+  - "**/examples/**"
+  - "**/test/**"
+  - "**/spec/**"
+  - ".github/**"
+  - "adrs/**"

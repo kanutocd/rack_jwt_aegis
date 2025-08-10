@@ -1,0 +1,43 @@
+name: Coverage
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+          bundler-cache: true
+
+      - name: Run tests with coverage
+        run: |
+          bundle exec rake test
+
+      - name: Generate coverage report
+        run: |
+          echo "Coverage report generated in coverage/ directory"
+          if [ -f coverage/index.html ]; then
+            echo "✅ Coverage report available"
+          else
+            echo "❌ Coverage report not found"
+            exit 1
+          fi
+
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage/coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: true
+          verbose: true

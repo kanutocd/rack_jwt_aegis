@@ -25,7 +25,7 @@ Gem::Specification.new do |spec|
   spec.files = IO.popen(['git', 'ls-files', '-z'], chdir: __dir__, err: IO::NULL) do |ls|
     ls.readlines("\x0", chomp: true).reject do |f|
       (f == gemspec) ||
-        f.start_with?('bin/', '.vscode', '.history', 'test', 'adrs', '.ignoreme', 'Gemfile', '.gitignore', '.rspec',
+        f.start_with?('.vscode', '.history', 'test', 'adrs', '.ignoreme', 'Gemfile', '.gitignore', '.rspec',
                       'spec/', '.github/')
     end
   end
