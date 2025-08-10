@@ -10,13 +10,13 @@ Gem::Specification.new do |spec|
 
   spec.summary = "JWT authentication middleware for multi-tenant Rack applications"
   spec.description = "JWT authentication middleware with multi-tenant support, company validation, and subdomain isolation."
-  spec.homepage = "https://github.com/kendemanawa/rack_jwt_bastion"
+  spec.homepage = "https://github.com/kanutocd/rack_jwt_bastion"
   spec.license = "MIT"
   spec.required_ruby_version = ">= 3.2.0"
 
   spec.metadata["allowed_push_host"] = "https://rubygems.org"
   spec.metadata["homepage_uri"] = spec.homepage
-  spec.metadata["source_code_uri"] = "https://github.com/kendemanawa/rack_jwt_bastion"
+  spec.metadata["source_code_uri"] = "https://github.com/kanutocd/rack_jwt_bastion"
 
   # Specify which files should be added to the gem when it is released.
   # The `git ls-files -z` loads the files in the RubyGem that have been added into git.
