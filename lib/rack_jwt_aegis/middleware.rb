@@ -1,0 +1,116 @@
+# frozen_string_literal: true
+
+module RackJwtAegis
+  class Middleware
+    def initialize(app, options = {})
+      @app = app
+      @config = Configuration.new(options)
+
+      # Initialize components
+      @jwt_validator = JwtValidator.new(@config)
+      @multi_tenant_validator = MultiTenantValidator.new(@config) if multi_tenant_enabled?
+      @rbac_manager = RbacManager.new(@config) if @config.rbac_enabled?
+      @response_builder = ResponseBuilder.new(@config)
+      @request_context = RequestContext.new(@config)
+
+      debug_log("Middleware initialized with features: #{enabled_features}")
+    end
+
+    def call(env)
+      request = Rack::Request.new(env)
+
+      debug_log("Processing request: #{request.request_method} #{request.path}")
+
+      # Step 1: Check if path should be skipped
+      if @config.skip_path?(request.path)
+        debug_log("Skipping authentication for path: #{request.path}")
+        return @app.call(env)
+      end
+
+      begin
+        # Step 2: Extract and validate JWT token
+        token = extract_jwt_token(request)
+        payload = @jwt_validator.validate(token)
+
+        debug_log("JWT validation successful for user: #{payload[@config.payload_key(:user_id)]}")
+
+        # Step 3: Multi-tenant validation (if enabled)
+        if multi_tenant_enabled?
+          @multi_tenant_validator.validate(request, payload)
+          debug_log('Multi-tenant validation successful')
+        end
+
+        # Step 4: RBAC permission check (if enabled)
+        if @config.rbac_enabled?
+          @rbac_manager.authorize(request, payload)
+          debug_log('RBAC authorization successful')
+        end
+
+        # Step 5: Custom payload validation (if configured)
+        if @config.custom_payload_validator
+          unless @config.custom_payload_validator.call(payload, request)
+            debug_log('Custom payload validation failed')
+            raise AuthorizationError, 'Custom validation failed'
+          end
+          debug_log('Custom payload validation successful')
+        end
+
+        # Step 6: Set request context for application
+        @request_context.set_context(env, payload)
+        debug_log('Request context set successfully')
+
+        # Continue to application
+        @app.call(env)
+      rescue AuthenticationError => e
+        debug_log("Authentication failed: #{e.message}")
+        @response_builder.unauthorized_response(e.message)
+      rescue AuthorizationError => e
+        debug_log("Authorization failed: #{e.message}")
+        @response_builder.forbidden_response(e.message)
+      rescue StandardError => e
+        debug_log("Unexpected error: #{e.message}")
+        if @config.debug_mode?
+          @response_builder.error_response("Internal error: #{e.message}", 500)
+        else
+          @response_builder.error_response('Internal server error', 500)
+        end
+      end
+    end
+
+    private
+
+    def extract_jwt_token(request)
+      auth_header = request.get_header('HTTP_AUTHORIZATION')
+
+      raise AuthenticationError, 'Authorization header missing' if auth_header.nil? || auth_header.empty?
+
+      # Extract Bearer token
+      match = auth_header.match(/\ABearer\s+(.+)\z/)
+      raise AuthenticationError, 'Invalid authorization header format' if match.nil?
+
+      token = match[1]
+      raise AuthenticationError, 'JWT token missing' if token.nil? || token.empty?
+
+      token
+    end
+
+    def multi_tenant_enabled?
+      @config.validate_subdomain? || @config.validate_company_slug?
+    end
+
+    def enabled_features
+      features = ['JWT']
+      features << 'Subdomain' if @config.validate_subdomain?
+      features << 'CompanySlug' if @config.validate_company_slug?
+      features << 'RBAC' if @config.rbac_enabled?
+      features.join(', ')
+    end
+
+    def debug_log(message)
+      return unless @config.debug_mode?
+
+      timestamp = Time.now.strftime('%Y-%m-%d %H:%M:%S.%L')
+      puts "[#{timestamp}] RackJwtAegis: #{message}"
+    end
+  end
+end

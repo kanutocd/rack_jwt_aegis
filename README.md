@@ -1,4 +1,4 @@
-# Rack JWT Bastion
+# Rack JWT Aegis
 
 JWT authentication middleware for hierarchical multi-tenant Rack applications with 2-level tenant support.
 
@@ -19,7 +19,7 @@ JWT authentication middleware for hierarchical multi-tenant Rack applications wi
 Add this line to your application's Gemfile:
 
 ```ruby
-gem 'rack_jwt_bastion'
+gem 'rack_jwt_aegis'
 ```
 
 And then execute:
@@ -31,7 +31,7 @@ bundle install
 Or install it yourself as:
 
 ```bash
-gem install rack_jwt_bastion
+gem install rack_jwt_aegis
 ```
 
 ## Quick Start
@@ -40,7 +40,7 @@ gem install rack_jwt_bastion
 
 ```ruby
 # config/application.rb
-config.middleware.insert_before 0, RackJwtBastion::Middleware, {
+config.middleware.insert_before 0, RackJwtAegis::Middleware, {
   jwt_secret: ENV['JWT_SECRET'],
   company_header_name: 'X-Company-Group-Id',
   skip_paths: ['/api/v1/login', '/api/v1/refresh', '/health']
@@ -50,9 +50,9 @@ config.middleware.insert_before 0, RackJwtBastion::Middleware, {
 ### Sinatra Application
 
 ```ruby
-require 'rack_jwt_bastion'
+require 'rack_jwt_aegis'
 
-use RackJwtBastion::Middleware, {
+use RackJwtAegis::Middleware, {
   jwt_secret: ENV['JWT_SECRET'],
   company_header_name: 'X-Company-Group-Id',
   skip_paths: ['/login', '/health']
@@ -62,10 +62,10 @@ use RackJwtBastion::Middleware, {
 ### Pure Rack Application
 
 ```ruby
-require 'rack_jwt_bastion'
+require 'rack_jwt_aegis'
 
 app = Rack::Builder.new do
-  use RackJwtBastion::Middleware, {
+  use RackJwtAegis::Middleware, {
     jwt_secret: ENV['JWT_SECRET'],
     validate_subdomain: true,
     validate_company_slug: true
@@ -80,7 +80,7 @@ end
 ### Basic Configuration
 
 ```ruby
-RackJwtBastion::Middleware.new(app, {
+RackJwtAegis::Middleware.new(app, {
   # JWT Settings (Required)
   jwt_secret: ENV['JWT_SECRET'],
   jwt_algorithm: 'HS256',  # Default: 'HS256'
@@ -106,7 +106,7 @@ RackJwtBastion::Middleware.new(app, {
 ### Advanced Configuration
 
 ```ruby
-RackJwtBastion::Middleware.new(app, {
+RackJwtAegis::Middleware.new(app, {
   jwt_secret: ENV['JWT_SECRET'],
 
   # Custom Payload Validation
@@ -134,7 +134,7 @@ RackJwtBastion::Middleware.new(app, {
 
 ## Multi-Tenant Support
 
-Rack JWT Bastion provides multiple strategies for multi-tenant authentication:
+Rack JWT Aegis provides multiple strategies for multi-tenant authentication:
 
 ### Subdomain Validation
 
@@ -212,4 +212,4 @@ The gem is available as open source under the terms of the [MIT License](https:/
 
 ## Code of Conduct
 
-Everyone interacting in the Rack JWT Bastion project's codebases, issue trackers, chat rooms and mailing lists is expected to follow the [code of conduct](CODE_OF_CONDUCT.md).
+Everyone interacting in the Rack JWT Aegis project's codebases, issue trackers, chat rooms and mailing lists is expected to follow the [code of conduct](CODE_OF_CONDUCT.md).
