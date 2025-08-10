@@ -1,0 +1,160 @@
+plugins:
+  - rubocop-performance
+  - rubocop-minitest
+
+AllCops:
+  TargetRubyVersion: 3.1
+  NewCops: enable
+  SuggestExtensions: false
+  Exclude:
+    - 'adrs/**/*'
+    - 'coverage/**/*'
+    - '.github/**/*'
+    - '.vscode/**/*'
+    - '.history/**/*'
+
+# Layout and Formatting
+Layout/LineLength:
+  Max: 120
+  AllowedPatterns: ['\A\s*#.*\z'] # Allow long comments
+
+Layout/MultilineMethodCallIndentation:
+  EnforcedStyle: indented
+
+Layout/FirstArrayElementIndentation:
+  EnforcedStyle: consistent
+
+Layout/FirstHashElementIndentation:
+  EnforcedStyle: consistent
+
+# Style Guidelines
+Style/Documentation:
+  Enabled: false # Disable for now during development
+
+Style/StringLiterals:
+  EnforcedStyle: single_quotes
+  ConsistentQuotesInMultiline: true
+
+Style/StringLiteralsInInterpolation:
+  EnforcedStyle: single_quotes
+
+Style/FrozenStringLiteralComment:
+  Enabled: true
+  EnforcedStyle: always
+
+Style/TrailingCommaInArguments:
+  EnforcedStyleForMultiline: comma
+
+Style/TrailingCommaInArrayLiteral:
+  EnforcedStyleForMultiline: comma
+
+Style/TrailingCommaInHashLiteral:
+  EnforcedStyleForMultiline: comma
+
+Style/HashSyntax:
+  EnforcedStyle: ruby19_no_mixed_keys
+
+Style/Lambda:
+  EnforcedStyle: literal
+
+Style/ClassAndModuleChildren:
+  Enabled: false # Allow both compact and nested styles
+
+Style/NumericLiterals:
+  MinDigits: 6
+
+Style/SymbolArray:
+  EnforcedStyle: brackets
+
+Style/WordArray:
+  EnforcedStyle: brackets
+
+# Naming Conventions
+Naming/VariableNumber:
+  EnforcedStyle: snake_case
+
+Naming/PredicatePrefix:
+  ForbiddenPrefixes:
+    - is_
+
+# Metrics and Complexity
+Metrics/BlockLength:
+  Exclude:
+    - 'spec/**/*'
+    - 'test/**/*'
+    - 'lib/tasks/**/*'
+    - 'config/**/*'
+
+Metrics/ModuleLength:
+  Max: 200
+  Exclude:
+    - 'spec/**/*'
+    - 'test/**/*'
+
+Metrics/ClassLength:
+  Max: 150
+  Exclude:
+    - 'spec/**/*'
+    - 'test/**/*'
+
+Metrics/MethodLength:
+  Max: 20
+  Exclude:
+    - 'spec/**/*'
+    - 'test/**/*'
+
+Metrics/AbcSize:
+  Max: 20
+  Exclude:
+    - 'spec/**/*'
+    - 'test/**/*'
+
+Metrics/CyclomaticComplexity:
+  Max: 8
+
+Metrics/PerceivedComplexity:
+  Max: 8
+
+# Performance Rules
+Performance/CollectionLiteralInLoop:
+  Enabled: true
+
+Performance/StringReplacement:
+  Enabled: true
+
+Performance/UnfreezeString:
+  Enabled: true
+
+# Security Rules
+Security/Open:
+  Enabled: true
+
+Security/YAMLLoad:
+  Enabled: true
+
+Security/JSONLoad:
+  Enabled: true
+
+# Lint Rules
+Lint/AmbiguousBlockAssociation:
+  Exclude:
+    - 'test/**/*'
+
+Lint/SuppressedException:
+  AllowComments: true
+
+# Minitest-specific Rules
+Minitest/MultipleAssertions:
+  Enabled: false # Allow multiple assertions in tests
+
+Minitest/AssertTruthy:
+  Enabled: true
+
+Minitest/AssertWithExpectedArgument:
+  Enabled: true
+
+Minitest/RefuteFalse:
+  Enabled: true
+
+Minitest/RefuteNil:
+  Enabled: true
