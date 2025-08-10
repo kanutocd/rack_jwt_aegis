@@ -46,6 +46,26 @@ class MiddlewareIntegrationTest < Minitest::Test
     assert_match(/invalid authorization header format/i, response['error'])
   end
 
+  def test_error_message_with_gem_information_in_debug_mode
+    @app = Rack::Builder.new do
+      use RackJwtAegis::Middleware, {
+        jwt_secret: 'test-secret',
+        validate_pathname_slug: true,
+        debug_mode: true,
+      }
+
+      run ->(_env) { [200, {}, ['OK']] }
+    end
+    header 'Authorization', 'Invalid format'
+    get '/api/users'
+
+    assert_equal 401, last_response.status
+    response = JSON.parse(last_response.body)
+
+    assert_equal 'rack_jwt_aegis', response['middleware']
+    assert response.key?('version'), 'Response contains the middle version information'
+  end
+
   def test_successful_authentication_and_context_setting
     token = generate_jwt_token
     header 'Authorization', "Bearer #{token}"

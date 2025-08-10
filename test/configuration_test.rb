@@ -360,6 +360,15 @@ class ConfigurationTest < Minitest::Test
     refute_predicate config, :cache_write_enabled?
   end
 
+  def test_boolean_helper_methods_with_a_string_false
+    config = RackJwtAegis::Configuration.new(
+      jwt_secret: 'test-secret',
+      validate_subdomain: 'false',
+    )
+
+    refute_predicate config, :validate_subdomain?
+  end
+
   def test_boolean_helper_methods_with_truthy_values
     config = RackJwtAegis::Configuration.new(
       jwt_secret: 'test-secret',
