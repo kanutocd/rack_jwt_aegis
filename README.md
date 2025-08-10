@@ -1,15 +1,15 @@
 # Rack JWT Bastion
 
-JWT authentication middleware for multi-tenant Rack applications.
+JWT authentication middleware for hierarchical multi-tenant Rack applications with 2-level tenant support.
 
 **Note: This is version 0.0.0 - a placeholder release to reserve the gem name. Implementation is in progress.**
 
 ## Features
 
 - JWT token validation with configurable algorithms
-- Multi-tenant support with company group validation
-- Subdomain-based tenant isolation
-- Company slug access control
+- 2-level multi-tenant support (Company-Group → Company, Organization → Department, etc.)
+- Subdomain-based tenant isolation for top-level tenants
+- Company slug access control for sub-level tenants
 - Configurable path exclusions for public endpoints
 - Custom payload validation
 - Debug mode for development
@@ -70,7 +70,7 @@ app = Rack::Builder.new do
     validate_subdomain: true,
     validate_company_slug: true
   }
-  
+
   run YourApp.new
 end
 ```
@@ -84,20 +84,20 @@ RackJwtBastion::Middleware.new(app, {
   # JWT Settings (Required)
   jwt_secret: ENV['JWT_SECRET'],
   jwt_algorithm: 'HS256',  # Default: 'HS256'
-  
+
   # Multi-Tenant Settings
   company_header_name: 'X-Company-Group-Id',  # Default: 'X-Company-Group-Id'
   validate_subdomain: true,     # Default: false
   validate_company_slug: true,  # Default: false
-  
+
   # Path Configuration
   skip_paths: ['/health', '/api/v1/login', '/api/v1/refresh'],
   company_slug_pattern: /^\/api\/v1\/([^\/]+)\//,  # Default pattern
-  
+
   # Response Customization
   unauthorized_response: { error: 'Authentication required' },
   forbidden_response: { error: 'Access denied' },
-  
+
   # Debugging
   debug_mode: Rails.env.development?  # Default: false
 })
@@ -108,13 +108,13 @@ RackJwtBastion::Middleware.new(app, {
 ```ruby
 RackJwtBastion::Middleware.new(app, {
   jwt_secret: ENV['JWT_SECRET'],
-  
+
   # Custom Payload Validation
   custom_payload_validator: ->(payload, request) {
     # Return true if valid, false if invalid
     payload['role'] == 'admin' || payload['permissions'].include?('read')
   },
-  
+
   # Flexible Payload Mapping
   payload_mapping: {
     user_id: :sub,                    # Map 'sub' claim to user_id
@@ -122,7 +122,7 @@ RackJwtBastion::Middleware.new(app, {
     company_group_domain: :domain,    # Map 'domain' claim
     company_slugs: :accessible_companies  # Map array of accessible companies
   },
-  
+
   # Custom Tenant Extraction
   tenant_strategy: :custom,
   tenant_extractor: ->(request) {
@@ -137,12 +137,14 @@ RackJwtBastion::Middleware.new(app, {
 Rack JWT Bastion provides multiple strategies for multi-tenant authentication:
 
 ### Subdomain Validation
+
 ```ruby
 # Validates that the JWT's domain matches the request subdomain
 config.validate_subdomain = true
 ```
 
-### Company Slug Validation  
+### Company Slug Validation
+
 ```ruby
 # Validates that the requested company slug is accessible to the user
 config.validate_company_slug = true
@@ -150,6 +152,7 @@ config.company_slug_pattern = /^\/api\/v1\/([^\/]+)\//
 ```
 
 ### Header-Based Validation
+
 ```ruby
 # Validates the X-Company-Group-Id header against JWT payload
 config.company_header_name = 'X-Company-Group-Id'
@@ -163,7 +166,7 @@ The middleware expects JWT payloads with the following structure:
 {
   "user_id": 12345,
   "company_group_id": 67890,
-  "company_group_domain": "acme.example.com", 
+  "company_group_domain": "acme.example.com",
   "company_slugs": ["acme", "acme-corp"],
   "roles": ["admin", "user"],
   "exp": 1640995200,
@@ -185,7 +188,6 @@ You can customize the payload mapping using the `payload_mapping` configuration 
 
 - Skip paths are checked before JWT processing
 - Low memory footprint
-- Compatible with JWT caching strategies
 
 ## Error Handling
 
