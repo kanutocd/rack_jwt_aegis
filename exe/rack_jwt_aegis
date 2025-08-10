@@ -1,0 +1,237 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require 'optparse'
+require 'securerandom'
+require 'base64'
+
+# CLI for rack_jwt_aegis gem
+class RackJwtAegisCLI
+  def initialize
+    @options = {
+      length: 64,
+      format: :hex,
+      count: 1,
+    }
+  end
+
+  def run(args = ARGV)
+    parse_options(args)
+
+    case @command
+    when :generate_secret
+      generate_secrets
+    when :version
+      show_version
+    when :help
+      show_help
+    else
+      show_help
+    end
+  end
+
+  private
+
+  def parse_options(args)
+    @command = :generate_secret # default command
+
+    OptionParser.new do |opts|
+      opts.banner = 'Usage: rack-jwt-aegis [command] [options]'
+      opts.separator ''
+      opts.separator 'Commands:'
+      opts.separator '    secret          Generate JWT secret(s) (default)'
+      opts.separator '    version         Show version'
+      opts.separator '    help            Show this help'
+      opts.separator ''
+      opts.separator 'Secret generation options:'
+
+      opts.on('-l', '--length LENGTH', Integer, 'Secret length in bytes (default: 64)') do |length|
+        @options[:length] = length
+      end
+
+      opts.on('-f', '--format FORMAT', [:hex, :base64, :raw],
+              'Output format: hex, base64, raw (default: hex)') do |format|
+        @options[:format] = format
+      end
+
+      opts.on('-c', '--count COUNT', Integer, 'Number of secrets to generate (default: 1)') do |count|
+        @options[:count] = count
+      end
+
+      opts.on('-e', '--env', 'Output in environment variable format') do
+        @options[:env_format] = true
+      end
+
+      opts.on('-q', '--quiet', 'Quiet mode - only output the secret(s)') do
+        @options[:quiet] = true
+      end
+
+      opts.on('-h', '--help', 'Show this help') do
+        @command = :help
+      end
+
+      opts.on('-v', '--version', 'Show version') do
+        @command = :version
+      end
+
+      opts.separator ''
+      opts.separator 'Examples:'
+      opts.separator '    rack-jwt-aegis secret                    # Generate hex secret'
+      opts.separator '    rack-jwt-aegis secret -f base64          # Generate base64 secret'
+      opts.separator '    rack-jwt-aegis secret -l 32 -c 3         # Generate 3 secrets, 32 bytes each'
+      opts.separator '    rack-jwt-aegis secret -e                 # Output as JWT_SECRET=...'
+      opts.separator '    rack-jwt-aegis secret -q                 # Quiet mode'
+      opts.separator ''
+    end.parse!(args)
+
+    # Handle command from remaining args
+    return unless args.length.positive?
+
+    case args[0].downcase
+    when 'secret', 'generate'
+      @command = :generate_secret
+    when 'version'
+      @command = :version
+    when 'help'
+      @command = :help
+    else
+      # Invalid command - show help
+      @command = :help
+      @invalid_command = args[0]
+    end
+  end
+
+  def generate_secrets
+    unless @options[:quiet]
+      puts '🛡️  Rack JWT Aegis - Secret Generator'
+      puts '=' * 50
+      puts
+    end
+
+    @options[:count].times do |i|
+      secret = SecureRandom.random_bytes(@options[:length])
+      formatted_secret = format_secret(secret)
+
+      if @options[:env_format]
+        puts "JWT_SECRET=#{formatted_secret}"
+      elsif @options[:quiet]
+        puts formatted_secret
+      else
+        puts "Secret #{i + 1}:" if @options[:count] > 1
+        puts formatted_secret
+        unless @options[:quiet]
+          puts "Length: #{@options[:length]} bytes (#{formatted_secret.length} characters)"
+          puts "Format: #{@options[:format]}"
+          puts "Entropy: ~#{(@options[:length] * 8).to_f} bits"
+          puts
+        end
+      end
+    end
+
+    return if @options[:quiet]
+
+    puts '💡 Usage in your application:'
+    puts "   export JWT_SECRET=\"#{format_secret(SecureRandom.random_bytes(@options[:length]))}\""
+    puts '   # or add to your .env file'
+    puts
+    puts '⚠️  Security reminders:'
+    puts '   - Store secrets securely (environment variables, not in code)'
+    puts '   - Use different secrets for different environments'
+    puts '   - Rotate secrets periodically'
+    puts '   - Never commit secrets to version control'
+  end
+
+  def format_secret(secret)
+    case @options[:format]
+    when :hex
+      secret.unpack1('H*')
+    when :base64
+      Base64.strict_encode64(secret)
+    when :raw
+      secret
+    end
+  end
+
+  def show_version
+    # Try to load the version from the gem
+
+    require_relative '../lib/rack_jwt_aegis/version'
+    puts "rack_jwt_aegis #{RackJwtAegis::VERSION}"
+  rescue LoadError
+    puts 'rack_jwt_aegis (version unknown)'
+  end
+
+  def show_help
+    if @invalid_command
+      puts "❌ Unknown command: #{@invalid_command}"
+      puts
+    end
+
+    puts <<~HELP
+      🛡️  Rack JWT Aegis CLI
+
+      A command-line tool for generating secure JWT secrets and managing
+      rack_jwt_aegis configurations.
+
+      USAGE:
+          rack-jwt-aegis [command] [options]
+
+      COMMANDS:
+          secret          Generate secure JWT secret(s)
+          version         Show gem version
+          help            Show this help message
+
+      SECRET GENERATION:
+          The secret command generates cryptographically secure random
+          secrets suitable for JWT signing.
+
+      EXAMPLES:
+          # Generate a 64-byte hex secret (default)
+          rack-jwt-aegis secret
+
+          # Generate a base64-encoded secret
+          rack-jwt-aegis secret --format base64
+
+          # Generate 3 secrets at once
+          rack-jwt-aegis secret --count 3
+
+          # Generate secret for environment variable
+          rack-jwt-aegis secret --env
+
+          # Quiet mode (only output secret)
+          rack-jwt-aegis secret --quiet
+
+          # Custom length (32 bytes)
+          rack-jwt-aegis secret --length 32
+
+      SECURITY NOTES:
+          - Generated secrets use SecureRandom for cryptographic security
+          - Default 64-byte secrets provide ~512 bits of entropy
+          - Always store secrets securely (environment variables, secret managers)
+          - Use different secrets for different environments
+          - Rotate secrets periodically
+
+      For more information, visit:
+      https://github.com/kanutocd/rack_jwt_aegis
+    HELP
+  end
+end
+
+# Run CLI if this file is executed directly
+if $PROGRAM_NAME == __FILE__
+  exit_status = 1
+  cli = RackJwtAegisCLI.new
+  begin
+    cli.run
+    exit_status = 0
+  rescue Interrupt
+    puts "\n\n⚠️  Operation cancelled."
+  rescue OptionParser::InvalidArgument, OptionParser::InvalidOption => e
+    warn "❌ Error: #{e.message}"
+    puts
+    puts "Use 'rack-jwt-aegis --help' for usage information."
+  rescue StandardError => e
+    warn "❌ Error: #{e.message}"
+  end
+  exit exit_status
+end

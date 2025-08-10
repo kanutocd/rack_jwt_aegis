@@ -2,8 +2,6 @@
 
 JWT authentication middleware for hierarchical multi-tenant Rack applications with 2-level tenant support.
 
-**Note: This is version 0.0.0 - a placeholder release to reserve the gem name. Implementation is in progress.**
-
 ## Features
 
 - JWT token validation with configurable algorithms
@@ -33,6 +31,40 @@ Or install it yourself as:
 ```bash
 gem install rack_jwt_aegis
 ```
+
+## CLI Tool
+
+Rack JWT Aegis includes a command-line tool for generating secure JWT secrets:
+
+```bash
+# Generate a secure JWT secret
+rack-jwt-aegis secret
+
+# Generate base64-encoded secret
+rack-jwt-aegis secret --format base64
+
+# Generate secret in environment variable format
+rack-jwt-aegis secret --env
+
+# Generate multiple secrets
+rack-jwt-aegis secret --count 3
+
+# Quiet mode (secret only)
+rack-jwt-aegis secret --quiet
+
+# Custom length (32 bytes)
+rack-jwt-aegis secret --length 32
+
+# Show help
+rack-jwt-aegis --help
+```
+
+### Security Features
+
+- Uses `SecureRandom` for cryptographically secure generation
+- Default 64-byte secrets provide ~512 bits of entropy
+- Multiple output formats: hex, base64, raw
+- Environment variable formatting for easy setup
 
 ## Quick Start
 
@@ -166,8 +198,8 @@ The middleware expects JWT payloads with the following structure:
 {
   "user_id": 12345,
   "tenant_id": 67890,
-  "subdomain": "acme.example.com",
-  "pathname_slugs": ["acme", "acme-corp"],
+  "subdomain": "acme-group-of-companies", # the subdomain part of the host of the request url, e.g. `http://acme-group-of-companies.example.com`
+  "pathname_slugs": ["an-acme-company-subsidiary", "another-acme-company-the-user-has-access"], # the user has access to these kind of request urls: https://acme-group-of-companies.example.com/api/v1/an-acme-company-subsidiary/* or https://acme-group-of-companies.example.com/api/v1/another-acme-company-the-user-has-access/
   "roles": ["admin", "user"],
   "exp": 1640995200,
   "iat": 1640991600
