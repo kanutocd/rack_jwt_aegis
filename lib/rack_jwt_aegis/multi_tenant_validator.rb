@@ -73,9 +73,7 @@ module RackJwtAegis
       jwt_company_group_key = @config.payload_key(:tenant_id).to_s
       jwt_tenant_id = payload[jwt_company_group_key]
 
-      if jwt_tenant_id.nil?
-        raise AuthorizationError, 'JWT payload missing tenant_id for header validation'
-      end
+      raise AuthorizationError, 'JWT payload missing tenant_id for header validation' if jwt_tenant_id.nil?
 
       # Normalize values for comparison (both as strings)
       header_value_str = header_value.to_s

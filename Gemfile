@@ -10,6 +10,7 @@ group :development do
   gem 'kramdown', '~> 2.5'
   gem 'minitest', '~> 5.25'
   gem 'mocha', '~> 2.7'
+  gem 'rack-test', '~> 2.2'
   gem 'rake', '~> 13.3'
   gem 'rubocop', '~> 1.79'
   gem 'rubocop-minitest', '~> 0.38.1'

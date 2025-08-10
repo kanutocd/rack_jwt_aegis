@@ -89,7 +89,7 @@ module RackJwtAegis
     def config_boolean?(value)
       return false if value.nil?
       return false if value == false
-      return false if value == 0
+      return false if value.is_a?(Numeric) && value.zero?
       return false if value == ''
       return false if value.is_a?(String) && value.downcase.strip == 'false'
 
@@ -151,9 +151,9 @@ module RackJwtAegis
       end
 
       # Set default fallback for permission_cache_store when rbac_cache_store is provided
-      if !rbac_cache_store.nil? && permission_cache_store.nil?
-        @permission_cache_store = :memory # Default fallback
-      end
+      return unless !rbac_cache_store.nil? && permission_cache_store.nil?
+
+      @permission_cache_store = :memory # Default fallback
     end
 
     def validate_multi_tenant_settings!

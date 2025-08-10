@@ -6,8 +6,8 @@ module RackJwtAegis
     JWT_PAYLOAD_KEY = 'rack_jwt_aegis.payload'
     USER_ID_KEY = 'rack_jwt_aegis.user_id'
     TENANT_ID_KEY = 'rack_jwt_aegis.tenant_id'
-    subdomain_KEY = 'rack_jwt_aegis.subdomain'
-    pathname_slugs_KEY = 'rack_jwt_aegis.pathname_slugs'
+    SUBDOMAIN_KEY = 'rack_jwt_aegis.subdomain'
+    PATHNAME_SLUGS_KEY = 'rack_jwt_aegis.pathname_slugs'
     AUTHENTICATED_KEY = 'rack_jwt_aegis.authenticated'
 
     def initialize(config)
@@ -44,11 +44,11 @@ module RackJwtAegis
     end
 
     def self.subdomain(env)
-      env[subdomain_KEY]
+      env[SUBDOMAIN_KEY]
     end
 
     def self.pathname_slugs(env)
-      env[pathname_slugs_KEY] || []
+      env[PATHNAME_SLUGS_KEY] || []
     end
 
     def self.current_user_id(request)
@@ -83,7 +83,7 @@ module RackJwtAegis
       if @config.validate_subdomain?
         company_domain_key = @config.payload_key(:subdomain).to_s
         company_domain = payload[company_domain_key]
-        env[subdomain_KEY] = company_domain
+        env[SUBDOMAIN_KEY] = company_domain
       end
 
       # Set company slugs for sub-level tenant access
@@ -94,7 +94,7 @@ module RackJwtAegis
 
       # Ensure it's an array
       pathname_slugs = Array(pathname_slugs) if pathname_slugs
-      env[pathname_slugs_KEY] = pathname_slugs || []
+      env[PATHNAME_SLUGS_KEY] = pathname_slugs || []
     end
   end
 end

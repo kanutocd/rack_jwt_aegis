@@ -126,9 +126,8 @@ class MiddlewareIntegrationTest < Minitest::Test
   private
 
   def header(name, value)
-    headers = last_request&.env&.select { |k, _| k.start_with?('HTTP_') } || {}
-    headers["HTTP_#{name.upcase.tr('-', '_')}"] = value
-    @headers = headers
+    @headers ||= {}
+    @headers["HTTP_#{name.upcase.tr('-', '_')}"] = value
   end
 
   attr_reader :last_request, :last_response
