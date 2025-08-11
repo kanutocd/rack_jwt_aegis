@@ -23,6 +23,8 @@ GEM
       base64
     kramdown (2.5.1)
       rexml (>= 3.3.9)
+    kramdown-parser-gfm (1.1.0)
+      kramdown (~> 2.0)
     language_server-protocol (3.17.0.5)
     lint_roller (1.1.0)
     minitest (5.25.5)
@@ -100,6 +102,7 @@ PLATFORMS
 DEPENDENCIES
   irb (~> 1.15)
   kramdown (~> 2.5)
+  kramdown-parser-gfm (~> 1.1)
   minitest (~> 5.25)
   mocha (~> 2.7)
   rack-test (~> 2.2)

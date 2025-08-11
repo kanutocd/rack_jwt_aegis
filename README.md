@@ -16,48 +16,40 @@ JWT authentication middleware for hierarchical multi-tenant Rack applications wi
 
 Add this line to your application's Gemfile:
 
-```ruby
-gem 'rack_jwt_aegis'
-```
+    gem 'rack_jwt_aegis'
 
 And then execute:
 
-```bash
-bundle install
-```
+    bundle install
 
 Or install it yourself as:
 
-```bash
-gem install rack_jwt_aegis
-```
+    gem install rack_jwt_aegis
 
 ## CLI Tool
 
 Rack JWT Aegis includes a command-line tool for generating secure JWT secrets:
 
-```bash
-# Generate a secure JWT secret
-rack-jwt-aegis secret
-
-# Generate base64-encoded secret
-rack-jwt-aegis secret --format base64
-
-# Generate secret in environment variable format
-rack-jwt-aegis secret --env
-
-# Generate multiple secrets
-rack-jwt-aegis secret --count 3
-
-# Quiet mode (secret only)
-rack-jwt-aegis secret --quiet
-
-# Custom length (32 bytes)
-rack-jwt-aegis secret --length 32
-
-# Show help
-rack-jwt-aegis --help
-```
+    # Generate a secure JWT secret
+    rack-jwt-aegis secret
+    
+    # Generate base64-encoded secret
+    rack-jwt-aegis secret --format base64
+    
+    # Generate secret in environment variable format
+    rack-jwt-aegis secret --env
+    
+    # Generate multiple secrets
+    rack-jwt-aegis secret --count 3
+    
+    # Quiet mode (secret only)
+    rack-jwt-aegis secret --quiet
+    
+    # Custom length (32 bytes)
+    rack-jwt-aegis secret --length 32
+    
+    # Show help
+    rack-jwt-aegis --help
 
 ### Security Features
 
@@ -70,70 +62,62 @@ rack-jwt-aegis --help
 
 ### Rails Application
 
-```ruby
-# config/application.rb
-config.middleware.insert_before 0, RackJwtAegis::Middleware, {
-  jwt_secret: ENV['JWT_SECRET'],
-  tenant_id_header_name: 'X-Tenant-Id',
-  skip_paths: ['/api/v1/login', '/api/v1/refresh', '/health']
-}
-```
+    # config/application.rb
+    config.middleware.insert_before 0, RackJwtAegis::Middleware, {
+      jwt_secret: ENV['JWT_SECRET'],
+      tenant_id_header_name: 'X-Tenant-Id',
+      skip_paths: ['/api/v1/login', '/api/v1/refresh', '/health']
+    }
 
 ### Sinatra Application
 
-```ruby
-require 'rack_jwt_aegis'
-
-use RackJwtAegis::Middleware, {
-  jwt_secret: ENV['JWT_SECRET'],
-  tenant_id_header_name: 'X-Tenant-Id',
-  skip_paths: ['/login', '/health']
-}
-```
+    require 'rack_jwt_aegis'
+    
+    use RackJwtAegis::Middleware, {
+      jwt_secret: ENV['JWT_SECRET'],
+      tenant_id_header_name: 'X-Tenant-Id',
+      skip_paths: ['/login', '/health']
+    }
 
 ### Pure Rack Application
 
-```ruby
-require 'rack_jwt_aegis'
-
-app = Rack::Builder.new do
-  use RackJwtAegis::Middleware, {
-    jwt_secret: ENV['JWT_SECRET'],
-    validate_subdomain: true,
-    validate_pathname_slug: true
-  }
-
-  run YourApp.new
-end
-```
+    require 'rack_jwt_aegis'
+    
+    app = Rack::Builder.new do
+      use RackJwtAegis::Middleware, {
+        jwt_secret: ENV['JWT_SECRET'],
+        validate_subdomain: true,
+        validate_pathname_slug: true
+      }
+    
+      run YourApp.new
+    end
 
 ## Configuration Options
 
 ### Basic Configuration
 
-```ruby
-RackJwtAegis::Middleware.new(app, {
-  # JWT Settings (Required)
-  jwt_secret: ENV['JWT_SECRET'],
-  jwt_algorithm: 'HS256',  # Default: 'HS256'
-
-  # Multi-Tenant Settings
-  tenant_id_header_name: 'X-Tenant-Id',  # Default: 'X-Tenant-Id'
-  validate_subdomain: true,     # Default: false
-  validate_pathname_slug: true,  # Default: false
-
-  # Path Configuration
-  skip_paths: ['/health', '/api/v1/login', '/api/v1/refresh'],
-  pathname_slug_pattern: /^\/api\/v1\/([^\/]+)\//,  # Default pattern
-
-  # Response Customization
-  unauthorized_response: { error: 'Authentication required' },
-  forbidden_response: { error: 'Access denied' },
-
-  # Debugging
-  debug_mode: Rails.env.development?  # Default: false
-})
-```
+    RackJwtAegis::Middleware.new(app, {
+      # JWT Settings (Required)
+      jwt_secret: ENV['JWT_SECRET'],
+      jwt_algorithm: 'HS256',  # Default: 'HS256'
+    
+      # Multi-Tenant Settings
+      tenant_id_header_name: 'X-Tenant-Id',  # Default: 'X-Tenant-Id'
+      validate_subdomain: true,     # Default: false
+      validate_pathname_slug: true,  # Default: false
+    
+      # Path Configuration
+      skip_paths: ['/health', '/api/v1/login', '/api/v1/refresh'],
+      pathname_slug_pattern: /^\/api\/v1\/([^\/]+)\//,  # Default pattern
+    
+      # Response Customization
+      unauthorized_response: { error: 'Authentication required' },
+      forbidden_response: { error: 'Access denied' },
+    
+      # Debugging
+      debug_mode: Rails.env.development?  # Default: false
+    })
 
 ### Advanced Configuration
 
@@ -189,6 +173,8 @@ config.pathname_slug_pattern = /^\/api\/v1\/([^\/]+)\//
 # Validates the X-Tenant-Id header against JWT payload
 config.tenant_id_header_name = 'X-Tenant-Id'
 ```
+
+The value from this request header entry will be used to verify the JWT's mapped `tenant_id` claim.
 
 ## JWT Payload Structure
 

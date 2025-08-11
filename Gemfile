@@ -20,3 +20,5 @@ group :development do
   gem 'vcr', '~> 6.3'
   gem 'yard', '~> 0.9.37'
 end
+
+gem "kramdown-parser-gfm", "~> 1.1"
