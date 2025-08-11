@@ -87,11 +87,10 @@ module RackJwtAegis
 
     # Convert various falsy/truthy values to proper boolean for configuration
     def config_boolean?(value)
-      return false if value.nil?
-      return false if value == false
-      return false if value.is_a?(Numeric) && value.zero?
-      return false if value == ''
-      return false if value.is_a?(String) && value.downcase.strip == 'false'
+      if (value.is_a?(Numeric) && value.zero?) ||
+         (value.is_a?(String) && ['false', '0', '', 'no'].include?(value.downcase.strip))
+        return false
+      end
 
       # Everything else is truthy
       !!value

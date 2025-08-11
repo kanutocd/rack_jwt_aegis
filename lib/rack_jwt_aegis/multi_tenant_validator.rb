@@ -20,7 +20,7 @@ module RackJwtAegis
       return if request_host.nil? || request_host.empty?
 
       # Extract subdomain from request host
-      request_subdomain = extract_subdomain(request_host)
+      req_subdomain = extract_subdomain(request_host)
 
       # Get JWT domain claim
       jwt_domain_key = @config.payload_key(:subdomain).to_s
@@ -34,10 +34,11 @@ module RackJwtAegis
       jwt_subdomain = extract_subdomain(jwt_domain)
 
       # Compare subdomains
-      return if subdomains_match?(request_subdomain, jwt_subdomain)
+      return if subdomains_match?(req_subdomain, jwt_subdomain)
 
       raise AuthorizationError,
-            "Subdomain access denied: request subdomain '#{request_subdomain}' does not match JWT subdomain '#{jwt_subdomain}'"
+            "Subdomain access denied: request subdomain '#{req_subdomain}' " \
+            "does not match JWT subdomain '#{jwt_subdomain}'"
     end
 
     # Level 2 Multi-Tenant: Sub-level tenant (Company) validation via URL path

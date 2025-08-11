@@ -49,7 +49,7 @@ class CLITest < Minitest::Test
     assert_match(/\A[a-f0-9]+\z/, secret)
   end
 
-  def test_cli_secret_generation_base64
+  def test_cli_secret_generation_base64 # rubocop:disable Naming/VariableNumber
     stdout, stderr, status = Open3.capture3("ruby #{@cli_path} secret --format base64 --quiet")
 
     assert_predicate status, :success?

@@ -9,7 +9,8 @@ Gem::Specification.new do |spec|
   spec.email = ['kenneth.c.demanawa@gmail.com']
 
   spec.summary = 'JWT authentication middleware for multi-tenant Rack applications'
-  spec.description = 'JWT authentication middleware with multi-tenant support, company validation, and subdomain isolation.'
+  spec.description = 'JWT authentication middleware with multi-tenant support,\
+                     company validation, and subdomain isolation.'.squeeze
   spec.homepage = 'https://github.com/kanutocd/rack_jwt_aegis'
   spec.license = 'MIT'
   spec.required_ruby_version = '>= 3.2.0'

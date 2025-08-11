@@ -23,8 +23,6 @@ class RackJwtAegisCLI
       generate_secrets
     when :version
       show_version
-    when :help
-      show_help
     else
       show_help
     end
@@ -32,10 +30,10 @@ class RackJwtAegisCLI
 
   private
 
-  def parse_options(args)
+  def parse_options(args) # rubocop:disable Metrics/MethodLength,Metrics/AbcSize
     @command = :generate_secret # default command
 
-    OptionParser.new do |opts|
+    OptionParser.new do |opts| # rubocop:disable Metrics/BlockLength
       opts.banner = 'Usage: rack-jwt-aegis [command] [options]'
       opts.separator ''
       opts.separator 'Commands:'
@@ -49,7 +47,7 @@ class RackJwtAegisCLI
         @options[:length] = length
       end
 
-      opts.on('-f', '--format FORMAT', [:hex, :base64, :raw],
+      opts.on('-f', '--format FORMAT', [:hex, :base64, :raw], # rubocop:disable Naming/VariableNumber
               'Output format: hex, base64, raw (default: hex)') do |format|
         @options[:format] = format
       end
@@ -145,7 +143,7 @@ class RackJwtAegisCLI
     case @options[:format]
     when :hex
       secret.unpack1('H*')
-    when :base64
+    when :base64 # rubocop:disable Naming/VariableNumber
       Base64.strict_encode64(secret)
     when :raw
       secret
