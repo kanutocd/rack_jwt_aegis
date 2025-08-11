@@ -1,7 +1,34 @@
 # frozen_string_literal: true
 
 module RackJwtAegis
+  # Main Rack middleware for JWT authentication and authorization
+  #
+  # This middleware handles the complete JWT authentication flow including:
+  # - JWT token extraction and validation
+  # - Multi-tenant validation (subdomain/pathname slug)
+  # - RBAC permission checking
+  # - Custom payload validation
+  # - Request context setting
+  #
+  # @author Ken Cooke
+  # @since 1.0.0
+  #
+  # @example Basic usage
+  #   use RackJwtAegis::Middleware, jwt_secret: ENV['JWT_SECRET']
+  #
+  # @example Advanced usage
+  #   use RackJwtAegis::Middleware, {
+  #     jwt_secret: ENV['JWT_SECRET'],
+  #     validate_subdomain: true,
+  #     rbac_enabled: true,
+  #     cache_store: :redis,
+  #     skip_paths: ['/health', '/api/public/*']
+  #   }
   class Middleware
+    # Initialize the middleware
+    #
+    # @param app [#call] the Rack application
+    # @param options [Hash] configuration options (see Configuration#initialize)
     def initialize(app, options = {})
       @app = app
       @config = Configuration.new(options)
@@ -16,6 +43,12 @@ module RackJwtAegis
       debug_log("Middleware initialized with features: #{enabled_features}")
     end
 
+    # Process the Rack request
+    #
+    # @param env [Hash] the Rack environment
+    # @return [Array] Rack response array [status, headers, body]
+    # @raise [AuthenticationError] if JWT authentication fails
+    # @raise [AuthorizationError] if authorization checks fail
     def call(env)
       request = Rack::Request.new(env)
 
@@ -79,6 +112,11 @@ module RackJwtAegis
 
     private
 
+    # Extract JWT token from the Authorization header
+    #
+    # @param request [Rack::Request] the Rack request object
+    # @return [String] the extracted JWT token
+    # @raise [AuthenticationError] if authorization header is missing or invalid
     def extract_jwt_token(request)
       auth_header = request.get_header('HTTP_AUTHORIZATION')
 
@@ -94,10 +132,16 @@ module RackJwtAegis
       token
     end
 
+    # Check if multi-tenant validation is enabled
+    #
+    # @return [Boolean] true if subdomain or pathname slug validation is enabled
     def multi_tenant_enabled?
       @config.validate_subdomain? || @config.validate_pathname_slug?
     end
 
+    # Generate a string describing enabled features for logging
+    #
+    # @return [String] comma-separated list of enabled features
     def enabled_features
       features = ['JWT']
       features << 'Subdomain' if @config.validate_subdomain?
@@ -106,6 +150,9 @@ module RackJwtAegis
       features.join(', ')
     end
 
+    # Log debug message if debug mode is enabled
+    #
+    # @param message [String] the message to log
     def debug_log(message)
       return unless @config.debug_mode?
 

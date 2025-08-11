@@ -1,6 +1,23 @@
 # frozen_string_literal: true
 
 module RackJwtAegis
+  # Request context manager for storing JWT authentication data in Rack env
+  #
+  # Stores authenticated user and tenant information in the Rack environment
+  # hash for easy access by downstream application code. Provides both
+  # instance methods for setting context and class methods for reading.
+  #
+  # @author Ken Cooke
+  # @since 1.0.0
+  #
+  # @example Setting context (done by middleware)
+  #   context = RequestContext.new(config)
+  #   context.set_context(env, jwt_payload)
+  #
+  # @example Reading context in application
+  #   user_id = RequestContext.user_id(request.env)
+  #   tenant_id = RequestContext.tenant_id(request.env)
+  #   authenticated = RequestContext.authenticated?(request.env)
   class RequestContext
     # Standard environment keys for JWT data
     JWT_PAYLOAD_KEY = 'rack_jwt_aegis.payload'
@@ -10,10 +27,17 @@ module RackJwtAegis
     PATHNAME_SLUGS_KEY = 'rack_jwt_aegis.pathname_slugs'
     AUTHENTICATED_KEY = 'rack_jwt_aegis.authenticated'
 
+    # Initialize the request context manager
+    #
+    # @param config [Configuration] the configuration instance
     def initialize(config)
       @config = config
     end
 
+    # Set JWT authentication context in the Rack environment
+    #
+    # @param env [Hash] the Rack environment hash
+    # @param payload [Hash] the validated JWT payload
     def set_context(env, payload)
       # Set the full payload
       env[JWT_PAYLOAD_KEY] = payload
@@ -27,18 +51,35 @@ module RackJwtAegis
     end
 
     # Class methods for easy access from application code
+
+    # Check if the request is authenticated
+    #
+    # @param env [Hash] the Rack environment hash
+    # @return [Boolean] true if request is authenticated
     def self.authenticated?(env)
       !!env[AUTHENTICATED_KEY]
     end
 
+    # Get the full JWT payload from the request
+    #
+    # @param env [Hash] the Rack environment hash
+    # @return [Hash, nil] the JWT payload or nil if not authenticated
     def self.payload(env)
       env[JWT_PAYLOAD_KEY]
     end
 
+    # Get the authenticated user ID
+    #
+    # @param env [Hash] the Rack environment hash
+    # @return [String, Integer, nil] the user ID or nil if not available
     def self.user_id(env)
       env[USER_ID_KEY]
     end
 
+    # Get the tenant ID
+    #
+    # @param env [Hash] the Rack environment hash
+    # @return [String, Integer, nil] the tenant ID or nil if not available
     def self.tenant_id(env)
       env[TENANT_ID_KEY]
     end

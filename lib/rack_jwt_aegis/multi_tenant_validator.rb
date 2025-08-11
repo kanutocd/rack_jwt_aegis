@@ -1,11 +1,37 @@
 # frozen_string_literal: true
 
 module RackJwtAegis
+  # Multi-tenant validation for subdomain and pathname slug access control
+  #
+  # Validates that users can only access resources within their permitted
+  # tenant boundaries. Supports two levels of tenant validation:
+  # 1. Subdomain-based (Level 1) - Company-Group level isolation
+  # 2. Pathname slug-based (Level 2) - Company level isolation within groups
+  #
+  # @author Ken Cooke
+  # @since 1.0.0
+  #
+  # @example Usage
+  #   config = Configuration.new(
+  #     jwt_secret: 'secret',
+  #     validate_subdomain: true,
+  #     validate_pathname_slug: true
+  #   )
+  #   validator = MultiTenantValidator.new(config)
+  #   validator.validate(request, jwt_payload)
   class MultiTenantValidator
+    # Initialize the multi-tenant validator
+    #
+    # @param config [Configuration] the configuration instance
     def initialize(config)
       @config = config
     end
 
+    # Validate multi-tenant access permissions for the request
+    #
+    # @param request [Rack::Request] the incoming request
+    # @param payload [Hash] the JWT payload containing tenant information
+    # @raise [AuthorizationError] if tenant validation fails
     def validate(request, payload)
       validate_subdomain(request, payload) if @config.validate_subdomain?
       validate_pathname_slug(request, payload) if @config.validate_pathname_slug?

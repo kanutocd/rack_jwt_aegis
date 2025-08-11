@@ -1,0 +1,14 @@
+--output-dir doc
+--readme README.md
+--markup markdown
+--main README.md
+--protected
+--private
+--no-private
+--title "RackJwtAegis API Documentation"
+lib/**/*.rb
+-
+README.md
+LICENSE.txt
+CODE_OF_CONDUCT.md
+adrs/architecture.md

@@ -3,11 +3,41 @@
 require 'jwt'
 
 module RackJwtAegis
+  # JWT token validation and payload verification
+  #
+  # Handles JWT token decoding, signature verification, and payload validation
+  # including claims verification and type checking based on configuration.
+  #
+  # @author Ken Cooke
+  # @since 1.0.0
+  #
+  # @example Basic usage
+  #   config = Configuration.new(jwt_secret: 'your-secret')
+  #   validator = JwtValidator.new(config)
+  #   payload = validator.validate(jwt_token)
+  #
+  # @example With multi-tenant validation
+  #   config = Configuration.new(
+  #     jwt_secret: 'your-secret',
+  #     validate_subdomain: true,
+  #     validate_pathname_slug: true
+  #   )
+  #   validator = JwtValidator.new(config)
+  #   payload = validator.validate(jwt_token) # Will validate tenant claims
   class JwtValidator
+    # Initialize the JWT validator
+    #
+    # @param config [Configuration] the configuration instance
     def initialize(config)
       @config = config
     end
 
+    # Validate and decode a JWT token
+    #
+    # @param token [String] the JWT token to validate
+    # @return [Hash] the decoded JWT payload
+    # @raise [AuthenticationError] if token is invalid, expired, or malformed
+    # @raise [AuthenticationError] if required claims are missing or invalid
     def validate(token)
       # Decode JWT with verification
       payload, _header = JWT.decode(
@@ -45,6 +75,10 @@ module RackJwtAegis
 
     private
 
+    # Validate the structure and content of the JWT payload
+    #
+    # @param payload [Object] the decoded payload from JWT
+    # @raise [AuthenticationError] if payload structure is invalid
     def validate_payload_structure(payload)
       # Ensure payload is a hash
       raise AuthenticationError, 'Invalid JWT payload structure' unless payload.is_a?(Hash)
@@ -56,6 +90,10 @@ module RackJwtAegis
       validate_claim_types(payload)
     end
 
+    # Validate that all required claims are present in the payload
+    #
+    # @param payload [Hash] the JWT payload to validate
+    # @raise [AuthenticationError] if required claims are missing
     def validate_required_claims(payload)
       required_claims = []
 
@@ -77,6 +115,10 @@ module RackJwtAegis
       raise AuthenticationError, "JWT payload missing required claims: #{missing_claims.join(', ')}"
     end
 
+    # Validate the data types of specific claims in the payload
+    #
+    # @param payload [Hash] the JWT payload to validate
+    # @raise [AuthenticationError] if claim types are invalid
     def validate_claim_types(payload)
       user_id_key = @config.payload_key(:user_id).to_s
 

@@ -79,7 +79,7 @@ class RbacManagerTest < Minitest::Test
     @manager.authorize(@request, payload)
   end
 
-  def skip_test_authorize_with_cached_permission_denied
+  def test_skip_test_authorize_with_cached_permission_denied
     payload = valid_jwt_payload
     permission_key = @manager.send(:build_permission_key, 123, @request)
     current_time = Time.now.to_i
@@ -101,7 +101,7 @@ class RbacManagerTest < Minitest::Test
     assert_equal 'Access denied - cached permission', error.message
   end
 
-  def skip_test_authorize_with_stale_cached_permission
+  def test_skip_test_authorize_with_stale_cached_permission
     payload = valid_jwt_payload
     permission_key = @manager.send(:build_permission_key, 123, @request)
     rbac_key = @manager.send(:build_rbac_key, 123, @request.host, @request.path, @request.request_method)
@@ -194,7 +194,7 @@ class RbacManagerTest < Minitest::Test
     @manager.authorize(@request, payload)
   end
 
-  def skip_test_authorize_with_complex_hash_permission_allowed_field
+  def test_skip_test_authorize_with_complex_hash_permission_allowed_field
     payload = valid_jwt_payload
     rbac_key = @manager.send(:build_rbac_key, 123, @request.host, @request.path, @request.request_method)
     rbac_cache = @manager.instance_variable_get(:@rbac_cache)
@@ -223,7 +223,7 @@ class RbacManagerTest < Minitest::Test
     assert_equal 'Access denied - insufficient permissions', error.message
   end
 
-  def skip_test_authorize_with_complex_array_permission
+  def test_skip_test_authorize_with_complex_array_permission
     payload = valid_jwt_payload
     rbac_key = @manager.send(:build_rbac_key, 123, @request.host, @request.path, @request.request_method)
     rbac_cache = @manager.instance_variable_get(:@rbac_cache)
@@ -252,7 +252,7 @@ class RbacManagerTest < Minitest::Test
     assert_equal 'Access denied - insufficient permissions', error.message
   end
 
-  def skip_test_authorize_rbac_cache_error
+  def test_skip_test_authorize_rbac_cache_error
     # Use a manager with debug mode enabled from start
     config = RackJwtAegis::Configuration.new(basic_config.merge(
                                                cache_store: :memory,
@@ -347,7 +347,7 @@ class RbacManagerTest < Minitest::Test
     @manager.authorize(@request, payload)
   end
 
-  def skip_test_invalid_cached_entry_format
+  def test_skip_test_invalid_cached_entry_format
     payload = valid_jwt_payload
     permission_key = @manager.send(:build_permission_key, 123, @request)
     rbac_key = @manager.send(:build_rbac_key, 123, @request.host, @request.path, @request.request_method)

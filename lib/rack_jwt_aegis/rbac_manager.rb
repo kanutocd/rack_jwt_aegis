@@ -1,15 +1,36 @@
 # frozen_string_literal: true
 
 module RackJwtAegis
+  # Role-Based Access Control (RBAC) manager
+  #
+  # Handles authorization by checking user permissions against cached RBAC data.
+  # Supports both simple boolean permissions and complex permission structures.
+  # Uses a two-tier caching system for performance optimization.
+  #
+  # @author Ken Cooke
+  # @since 1.0.0
+  #
+  # @example Basic usage
+  #   config = Configuration.new(jwt_secret: 'secret', rbac_enabled: true, rbac_cache_store: :memory)
+  #   manager = RbacManager.new(config)
+  #   manager.authorize(request, jwt_payload)
   class RbacManager
     CACHE_TTL = 300 # 5 minutes default cache TTL
     LAST_UPDATE_KEY = 'last-update'
 
+    # Initialize the RBAC manager
+    #
+    # @param config [Configuration] the configuration instance
     def initialize(config)
       @config = config
       setup_cache_adapters
     end
 
+    # Authorize a request against RBAC permissions
+    #
+    # @param request [Rack::Request] the incoming request
+    # @param payload [Hash] the JWT payload containing user information
+    # @raise [AuthorizationError] if user lacks sufficient permissions
     def authorize(request, payload)
       user_id = payload[@config.payload_key(:user_id).to_s]
       raise AuthorizationError, 'User ID missing from JWT payload' if user_id.nil?
