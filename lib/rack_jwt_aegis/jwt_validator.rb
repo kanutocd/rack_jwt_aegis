@@ -8,8 +8,8 @@ module RackJwtAegis
   # Handles JWT token decoding, signature verification, and payload validation
   # including claims verification and type checking based on configuration.
   #
-  # @author Ken Cooke
-  # @since 1.0.0
+  # @author Ken Camajalan Demanawa
+  # @since 0.1.0
   #
   # @example Basic usage
   #   config = Configuration.new(jwt_secret: 'your-secret')

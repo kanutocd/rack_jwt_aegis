@@ -7,8 +7,8 @@ module RackJwtAegis
   # hash for easy access by downstream application code. Provides both
   # instance methods for setting context and class methods for reading.
   #
-  # @author Ken Cooke
-  # @since 1.0.0
+  # @author Ken Camajalan Demanawa
+  # @since 0.1.0
   #
   # @example Setting context (done by middleware)
   #   context = RequestContext.new(config)

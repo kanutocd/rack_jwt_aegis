@@ -8,8 +8,8 @@ module RackJwtAegis
   # 1. Subdomain-based (Level 1) - Company-Group level isolation
   # 2. Pathname slug-based (Level 2) - Company level isolation within groups
   #
-  # @author Ken Cooke
-  # @since 1.0.0
+  # @author Ken Camajalan Demanawa
+  # @since 0.1.0
   #
   # @example Usage
   #   config = Configuration.new(

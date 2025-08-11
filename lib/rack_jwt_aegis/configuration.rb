@@ -6,8 +6,8 @@ module RackJwtAegis
   # Manages all configuration options for JWT authentication, multi-tenant validation,
   # RBAC authorization, and caching behavior.
   #
-  # @author Ken Cooke
-  # @since 1.0.0
+  # @author Ken Camajalan Demanawa
+  # @since 0.1.0
   #
   # @example Basic configuration
   #   config = Configuration.new(jwt_secret: 'your-secret')

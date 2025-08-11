@@ -7,8 +7,8 @@ module RackJwtAegis
   # Supports both simple boolean permissions and complex permission structures.
   # Uses a two-tier caching system for performance optimization.
   #
-  # @author Ken Cooke
-  # @since 1.0.0
+  # @author Ken Camajalan Demanawa
+  # @since 0.1.0
   #
   # @example Basic usage
   #   config = Configuration.new(jwt_secret: 'secret', rbac_enabled: true, rbac_cache_store: :memory)

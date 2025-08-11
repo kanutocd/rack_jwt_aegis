@@ -10,8 +10,8 @@ module RackJwtAegis
   # - Custom payload validation
   # - Request context setting
   #
-  # @author Ken Cooke
-  # @since 1.0.0
+  # @author Ken Camajalan Demanawa
+  # @since 0.1.0
   #
   # @example Basic usage
   #   use RackJwtAegis::Middleware, jwt_secret: ENV['JWT_SECRET']

@@ -10,8 +10,8 @@ require_relative 'rack_jwt_aegis/cache_adapter'
 require_relative 'rack_jwt_aegis/request_context'
 require_relative 'rack_jwt_aegis/response_builder'
 
-# @author Ken Cooke
-# @since 1.0.0
+# @author Ken Camajalan Demanawa
+# @since 0.1.0
 #
 # RackJwtAegis is a comprehensive JWT authentication and authorization middleware for Rack applications.
 # It provides multi-tenant support, RBAC (Role-Based Access Control), and caching capabilities.
