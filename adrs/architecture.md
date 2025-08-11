@@ -2,7 +2,7 @@
 
 **Status:** Proposed
 **Date:** 2025-08-10
-**Project:** rack_jwt_bastion
+**Project:** rack_jwt_aegis
 **Version:** 0.0.0
 
 ---
@@ -132,16 +132,16 @@ Existing JWT authentication middleware gems for Ruby/Rack applications lack inte
 }
 ```
 
-### 3. Company Slug Validation (Optional)
+### 3. Pathname Slug Validation (Optional)
 
 **Purpose:** Path-based tenant access control
 **Security Model:** Ensures user can only access permitted company paths
 
 **Process:**
 
-- Extract company slug from URL path using regex pattern
+- Extract slug from URL path using regex pattern
 - Compare against JWT payload `pathname_slugs` array
-- Reject if requested company not in user's accessible list
+- Reject if requested path slug not in user's accessible list
 
 ```ruby
 # Configuration
@@ -290,8 +290,8 @@ RackJwtBastion::Middleware.new(app, {
   tenant_id_header_name: 'X-Tenant-Id',
   payload_mapping: {
     user_id: :sub,
-    tenant_id: :company_id,
-    subdomain: :domain,
+    tenant_id: :company_group_id,
+    subdomain: :company_group_domain_name,
     pathname_slugs: :accessible_companies
   },
 
@@ -328,8 +328,8 @@ RackJwtBastion::Middleware.new(app, {
 
 ```
 lib/
-├── rack_jwt_bastion.rb              # Main entry point
-├── rack_jwt_bastion/
+├── rack_jwt_aegis.rb              # Main entry point
+├── rack_jwt_aegis/
 │   ├── middleware.rb                # Core middleware class
 │   ├── configuration.rb             # Configuration management
 │   ├── jwt_validator.rb             # JWT token validation

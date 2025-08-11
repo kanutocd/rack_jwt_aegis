@@ -5,9 +5,9 @@ JWT authentication middleware for hierarchical multi-tenant Rack applications wi
 ## Features
 
 - JWT token validation with configurable algorithms
-- 2-level multi-tenant support (Company-Group → Company, Organization → Department, etc.)
+- 2-level multi-tenant support (Example: Company-Group → Company, Organization → Department, etc.)
 - Subdomain-based tenant isolation for top-level tenants
-- Company slug access control for sub-level tenants
+- URL pathname slug access control for sub-level tenants
 - Configurable path exclusions for public endpoints
 - Custom payload validation
 - Debug mode for development
@@ -150,9 +150,9 @@ RackJwtAegis::Middleware.new(app, {
   # Flexible Payload Mapping
   payload_mapping: {
     user_id: :sub,                    # Map 'sub' claim to user_id
-    tenant_id: :company_id,    # Map 'company_id' claim
-    subdomain: :domain,    # Map 'domain' claim
-    pathname_slugs: :accessible_companies  # Map array of accessible companies
+    tenant_id: :company_group_id,    # Map 'company_group_id' claim
+    subdomain: :company_group_domain_name,    # Map 'company_group_domain_name' claim
+    pathname_slugs: :accessible_company_slugs  # Map array of accessible companies
   },
 
   # Custom Tenant Extraction
