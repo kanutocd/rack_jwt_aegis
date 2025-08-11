@@ -75,6 +75,10 @@ module RackJwtAegis
 
         # Step 4: RBAC permission check (if enabled)
         if @config.rbac_enabled?
+          # Extract and store user roles in request environment for RBAC manager
+          user_roles = extract_user_roles(payload)
+          request.env['rack_jwt_aegis.user_roles'] = user_roles
+
           @rbac_manager.authorize(request, payload)
           debug_log('RBAC authorization successful')
         end
@@ -148,6 +152,25 @@ module RackJwtAegis
       features << 'CompanySlug' if @config.validate_pathname_slug?
       features << 'RBAC' if @config.rbac_enabled?
       features.join(', ')
+    end
+
+    # Extract user roles from JWT payload for RBAC authorization
+    #
+    # @param payload [Hash] the JWT payload
+    # @return [Array] array of user role IDs
+    def extract_user_roles(payload)
+      # Try multiple common role field names
+      roles = payload['roles'] || payload['role'] || payload['user_roles'] || payload['role_ids']
+
+      case roles
+      when Array
+        roles.map(&:to_s) # Ensure all roles are strings for consistent lookup
+      when String, Integer
+        [roles.to_s] # Single role as array
+      else
+        debug_log("Warning: No valid roles found in JWT payload. Available fields: #{payload.keys}")
+        []
+      end
     end
 
     # Log debug message if debug mode is enabled

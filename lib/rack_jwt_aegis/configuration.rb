@@ -113,6 +113,10 @@ module RackJwtAegis
     # @return [Hash] permission cache configuration options
     attr_accessor :permission_cache_options
 
+    # Time-to-live for user permissions cache in seconds
+    # @return [Integer] TTL in seconds (default: 1800 - 30 minutes)
+    attr_accessor :user_permissions_ttl
+
     # @!endgroup
 
     # @!group Custom Validators
@@ -164,6 +168,7 @@ module RackJwtAegis
     # @option options [Symbol] :cache_store cache adapter type
     # @option options [Hash] :cache_options cache configuration options
     # @option options [Boolean] :cache_write_enabled (false) enable cache writing
+    # @option options [Integer] :user_permissions_ttl (1800) user permissions cache TTL in seconds
     # @option options [Boolean] :debug_mode (false) enable debug logging
     # @raise [ConfigurationError] if jwt_secret is missing or configuration is invalid
     def initialize(options = {})
@@ -215,6 +220,7 @@ module RackJwtAegis
     # @param path [String] the request path to check
     # @return [Boolean] true if the path should be skipped
     def skip_path?(path)
+      puts "--- path: #{path.inspect}"
       return false if skip_paths.nil? || skip_paths.empty?
 
       skip_paths.any? do |skip_path|
@@ -261,6 +267,7 @@ module RackJwtAegis
       @pathname_slug_pattern = %r{^/api/v1/([^/]+)/}
       @skip_paths = []
       @cache_write_enabled = false
+      @user_permissions_ttl = 1800 # 30 minutes default
       @debug_mode = false
       @payload_mapping = {
         user_id: :user_id,

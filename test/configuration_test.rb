@@ -32,6 +32,7 @@ class ConfigurationTest < Minitest::Test
       cache_store: :redis,
       cache_options: { url: 'redis://localhost:6379' },
       cache_write_enabled: true,
+      user_permissions_ttl: 3600,
       custom_payload_validator: ->(_payload, _request) { true },
       unauthorized_response: { error: 'Custom unauthorized' },
       forbidden_response: { error: 'Custom forbidden' },
@@ -51,6 +52,7 @@ class ConfigurationTest < Minitest::Test
     assert_equal :redis, config.cache_store
     assert_equal({ url: 'redis://localhost:6379' }, config.cache_options)
     assert_predicate config, :cache_write_enabled?
+    assert_equal 3600, config.user_permissions_ttl
     assert_respond_to config.custom_payload_validator, :call
     assert_equal({ error: 'Custom unauthorized' }, config.unauthorized_response)
     assert_equal({ error: 'Custom forbidden' }, config.forbidden_response)
@@ -65,6 +67,7 @@ class ConfigurationTest < Minitest::Test
     assert_equal(%r{^/api/v1/([^/]+)/}, config.pathname_slug_pattern)
     assert_empty config.skip_paths
     refute_predicate config, :cache_write_enabled?
+    assert_equal 1800, config.user_permissions_ttl # Default 30 minutes
     refute_predicate config, :debug_mode?
 
     expected_payload_mapping = {

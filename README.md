@@ -16,40 +16,48 @@ JWT authentication middleware for hierarchical multi-tenant Rack applications wi
 
 Add this line to your application's Gemfile:
 
-    gem 'rack_jwt_aegis'
+```bash
+  gem 'rack_jwt_aegis'
+```
 
 And then execute:
 
-    bundle install
+```bash
+  bundle install
+```
 
 Or install it yourself as:
 
-    gem install rack_jwt_aegis
+```bash
+  gem install rack_jwt_aegis
+```
 
 ## CLI Tool
 
 Rack JWT Aegis includes a command-line tool for generating secure JWT secrets:
 
-    # Generate a secure JWT secret
-    rack-jwt-aegis secret
-    
-    # Generate base64-encoded secret
-    rack-jwt-aegis secret --format base64
-    
-    # Generate secret in environment variable format
-    rack-jwt-aegis secret --env
-    
-    # Generate multiple secrets
-    rack-jwt-aegis secret --count 3
-    
-    # Quiet mode (secret only)
-    rack-jwt-aegis secret --quiet
-    
-    # Custom length (32 bytes)
-    rack-jwt-aegis secret --length 32
-    
-    # Show help
-    rack-jwt-aegis --help
+```bash
+  # Generate a secure JWT secret
+  rack-jwt-aegis secret
+
+  # Generate base64-encoded secret
+  rack-jwt-aegis secret --format base64
+
+  # Generate secret in environment variable format
+  rack-jwt-aegis secret --env
+
+  # Generate multiple secrets
+  rack-jwt-aegis secret --count 3
+
+  # Quiet mode (secret only)
+  rack-jwt-aegis secret --quiet
+
+  # Custom length (32 bytes)
+  rack-jwt-aegis secret --length 32
+
+  # Show help
+  rack-jwt-aegis --help
+```
 
 ### Security Features
 
@@ -62,62 +70,76 @@ Rack JWT Aegis includes a command-line tool for generating secure JWT secrets:
 
 ### Rails Application
 
-    # config/application.rb
-    config.middleware.insert_before 0, RackJwtAegis::Middleware, {
-      jwt_secret: ENV['JWT_SECRET'],
-      tenant_id_header_name: 'X-Tenant-Id',
-      skip_paths: ['/api/v1/login', '/api/v1/refresh', '/health']
-    }
+```ruby
+  # config/application.rb
+  config.middleware.insert_before 0, RackJwtAegis::Middleware, {
+    jwt_secret: ENV['JWT_SECRET'],
+    tenant_id_header_name: 'X-Tenant-Id',
+    skip_paths: ['/api/v1/login', '/api/v1/refresh', '/health']
+  }
+```
 
 ### Sinatra Application
 
-    require 'rack_jwt_aegis'
-    
-    use RackJwtAegis::Middleware, {
-      jwt_secret: ENV['JWT_SECRET'],
-      tenant_id_header_name: 'X-Tenant-Id',
-      skip_paths: ['/login', '/health']
-    }
+```ruby
+  require 'rack_jwt_aegis'
+
+  use RackJwtAegis::Middleware, {
+    jwt_secret: ENV['JWT_SECRET'],
+    tenant_id_header_name: 'X-Tenant-Id',
+    skip_paths: ['/login', '/health']
+  }
+```
 
 ### Pure Rack Application
 
-    require 'rack_jwt_aegis'
-    
-    app = Rack::Builder.new do
-      use RackJwtAegis::Middleware, {
-        jwt_secret: ENV['JWT_SECRET'],
-        validate_subdomain: true,
-        validate_pathname_slug: true
-      }
-    
-      run YourApp.new
-    end
+```ruby
+  require 'rack_jwt_aegis'
+
+  app = Rack::Builder.new do
+    use RackJwtAegis::Middleware, {
+      jwt_secret: ENV['JWT_SECRET'],
+      validate_subdomain: true,
+      validate_pathname_slug: true
+    }
+
+    run YourApp.new
+  end
+```
 
 ## Configuration Options
 
 ### Basic Configuration
 
-    RackJwtAegis::Middleware.new(app, {
-      # JWT Settings (Required)
-      jwt_secret: ENV['JWT_SECRET'],
-      jwt_algorithm: 'HS256',  # Default: 'HS256'
-    
-      # Multi-Tenant Settings
-      tenant_id_header_name: 'X-Tenant-Id',  # Default: 'X-Tenant-Id'
-      validate_subdomain: true,     # Default: false
-      validate_pathname_slug: true,  # Default: false
-    
-      # Path Configuration
-      skip_paths: ['/health', '/api/v1/login', '/api/v1/refresh'],
-      pathname_slug_pattern: /^\/api\/v1\/([^\/]+)\//,  # Default pattern
-    
-      # Response Customization
-      unauthorized_response: { error: 'Authentication required' },
-      forbidden_response: { error: 'Access denied' },
-    
-      # Debugging
-      debug_mode: Rails.env.development?  # Default: false
-    })
+```ruby
+RackJwtAegis::Middleware.new(app, {
+  # JWT Settings (Required)
+  jwt_secret: ENV['JWT_SECRET'],
+  jwt_algorithm: 'HS256',  # Default: 'HS256'
+
+  # Multi-Tenant Settings
+  tenant_id_header_name: 'X-Tenant-Id',  # Default: 'X-Tenant-Id'
+  validate_subdomain: true,     # Default: false
+  validate_pathname_slug: true,  # Default: false
+
+  # Path Configuration
+  skip_paths: ['/health', '/api/v1/login', '/api/v1/refresh'],
+  pathname_slug_pattern: /^\/api\/v1\/([^\/]+)\//,  # Default pattern
+
+  # RBAC Configuration
+  rbac_enabled: true,               # Default: false
+  rbac_cache_store: :redis,         # Required when RBAC enabled
+  rbac_cache_options: { url: ENV['REDIS_URL'] },
+  user_permissions_ttl: 3600,       # Default: 1800 (30 minutes) - TTL for cached user permissions
+
+  # Response Customization
+  unauthorized_response: { error: 'Authentication required' },
+  forbidden_response: { error: 'Access denied' },
+
+  # Debugging
+  debug_mode: Rails.env.development?  # Default: false
+})
+```
 
 ### Advanced Configuration
 
@@ -207,6 +229,114 @@ You can customize the payload mapping using the `payload_mapping` configuration 
 - Skip paths are checked before JWT processing
 - Low memory footprint
 
+## RBAC Cache Format
+
+When RBAC is enabled, the middleware expects permissions to be stored in the cache with this exact format:
+
+```json
+{
+  "last_update": 1640995200,
+  "permissions": [
+    {
+      "123": [
+        "sales/invoices:get",
+        "sales/invoices:post", 
+        "%r{sales/invoices/\\d+}:get",
+        "%r{sales/invoices/\\d+}:put",
+        "users/*:get"
+      ]
+    },
+    {
+      "456": [
+        "admin/*:*",
+        "reports:get"
+      ]
+    }
+  ]
+}
+```
+
+### Format Specification
+
+- **last_update**: Timestamp for cache invalidation
+- **permissions**: Array of role permission objects
+- **Role ID**: String or numeric identifier for user roles
+- **Permission Format**: `"resource-endpoint:http-method"`
+  - **resource-endpoint**: API path (literal string or regex pattern)
+  - **http-method**: `get`, `post`, `put`, `delete`, or `*` (wildcard)
+
+### Permission Examples
+
+```ruby
+# Literal path matching
+"sales/invoices:get"        # GET /api/v1/company/sales/invoices
+"users/profile:put"         # PUT /api/v1/company/users/profile
+
+# Regex pattern matching  
+"%r{sales/invoices/\\d+}:get"    # GET /api/v1/company/sales/invoices/123
+"%r{users/\\d+/orders}:*"        # Any method on /api/v1/company/users/123/orders
+
+# Wildcard method
+"reports:*"                 # Any method on reports endpoint
+"admin/*:*"                 # Full admin access
+```
+
+### Request Authorization Flow
+
+1. **Check User Permissions Cache**: Fast lookup in middleware cache
+   - **RBAC Update Check**: If RBAC permissions updated within TTL → **Nuke entire cache**
+   - **TTL Check**: If individual permission older than configured TTL → Remove only that permission  
+   - If cache valid and permission found: **✅ Authorized**
+   - If cache valid but no permission: **❌ 403 Forbidden**
+
+2. **RBAC Permissions Validation**: Full permission evaluation
+   - Extract user roles from JWT payload (`roles`, `role`, `user_roles`, or `role_ids` field)
+   - Load RBAC permissions collection and validate format
+   - For each user role, check if any permission matches:
+     - Extract resource path from request URL (removes subdomain/pathname slug)
+     - Match against permission patterns (literal or regex)
+     - Validate HTTP method (exact match or wildcard)
+   - If authorized: Cache permission for future requests
+   - Return 403 Forbidden if no matching permissions found
+
+3. **Cache Storage**: Successful permissions cached with per-permission timestamps:
+   ```json
+   {
+     "12345": {
+       "acme-group.localhost.local/api/v1/company/sales/invoices": ["get", "post", 1640995200]
+     }
+   }
+   ```
+   TTL configurable via `user_permissions_ttl` option (default: 30 minutes)
+
+### Cache Invalidation Strategy
+
+**RBAC Collection Updated** (e.g., role permissions changed):
+- **Condition**: RBAC `last_update` within configured TTL
+- **Action**: **Nuke entire cache** (all users, all permissions)
+- **Reason**: Any permission could have changed, safer to re-evaluate everything
+
+**Individual Permission TTL Expired**:
+- **Condition**: Specific permission older than configured TTL
+- **Action**: **Remove only that permission** (preserve others)
+- **Reason**: Permission naturally aged out, other permissions still valid
+
+### Example Authorization
+
+Request: `POST https://acme-group.localhost/api/v1/an-acme-company/sales/invoices`
+- User has role: `123`
+- Role `123` permissions: `["sales/invoices:get", "sales/invoices:post"]`
+- Extracted resource path: `sales/invoices`  
+- Request method: `POST`
+- Result: **✅ Authorized** (matches `sales/invoices:post`)
+
+Request: `DELETE https://acme-group.localhost/api/v1/an-acme-company/sales/invoices/456`
+- User has role: `123` 
+- Role `123` permissions: `["sales/invoices:get", "%r{sales/invoices/\\d+}:put"]`
+- Extracted resource path: `sales/invoices/456`
+- Request method: `DELETE` 
+- Result: **❌ 403 Forbidden** (no DELETE permission)
+
 ## Error Handling
 
 The middleware returns appropriate HTTP status codes:
@@ -218,7 +348,7 @@ The middleware returns appropriate HTTP status codes:
 
 After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake test` to run the tests. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
 
-To install this gem onto your local machine, run `bundle exec rake install`. To release a new version, update the version number in `version.rb`, and then run `bundle exec rake release`, which will create a git tag for the version, push git commits and the created tag, and push the `.gem` file to [rubygems.org](https://rubygems.org).
+To install this gem onto your local machine, run `bundle exec rake install`.
 
 ## Contributing
 

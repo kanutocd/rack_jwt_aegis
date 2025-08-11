@@ -16,6 +16,7 @@ SimpleCov.start do
   add_filter '/spec/'
   add_filter '/bin/'
   add_filter 'version.rb'
+  add_filter '/examples/'
 
   # Track branch coverage in addition to line coverage (Ruby 2.5+)
   enable_coverage :branch if RUBY_VERSION >= '2.5'
