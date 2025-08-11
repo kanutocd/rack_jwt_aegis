@@ -12,6 +12,7 @@ AllCops:
     - '.github/**/*'
     - '.vscode/**/*'
     - '.history/**/*'
+    - 'examples/**/*'
 
 # Layout and Formatting
 Layout/LineLength:

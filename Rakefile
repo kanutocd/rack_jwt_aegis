@@ -14,8 +14,12 @@ begin
   require 'yard'
   require 'yard/rake/yardoc_task'
 
-  # Load custom GFM configuration
-  require_relative 'yard_gfm_config'
+  # Load custom GFM configuration if available
+  begin
+    require_relative '.yard/yard_gfm_config'
+  rescue LoadError
+    # GFM config not available, use default markdown processing
+  end
 
   YARD::Rake::YardocTask.new do |t|
     t.files = ['lib/**/*.rb']

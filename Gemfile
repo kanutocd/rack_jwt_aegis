@@ -8,6 +8,7 @@ gemspec
 group :development do
   gem 'irb', '~> 1.15'
   gem 'kramdown', '~> 2.5'
+  gem 'kramdown-parser-gfm', '~> 1.1'
   gem 'minitest', '~> 5.25'
   gem 'mocha', '~> 2.7'
   gem 'rack-test', '~> 2.2'
@@ -20,5 +21,3 @@ group :development do
   gem 'vcr', '~> 6.3'
   gem 'yard', '~> 0.9.37'
 end
-
-gem 'kramdown-parser-gfm', '~> 1.1'

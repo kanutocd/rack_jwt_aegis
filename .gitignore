@@ -12,3 +12,4 @@ test/reports/
 /.vscode/
 /.history/
 *.gem
+/examples/
