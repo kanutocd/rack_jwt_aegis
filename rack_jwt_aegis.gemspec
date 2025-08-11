@@ -35,7 +35,7 @@ Gem::Specification.new do |spec|
   spec.require_paths = ['lib']
 
   # Runtime dependencies
-  spec.add_dependency 'jwt', '~> 2.10'
+  spec.add_dependency 'jwt', '>= 2.10', '< 4.0'
   spec.add_dependency 'rack', '>= 3.2'
 
   # For more information and examples about making a new gem, check out our
