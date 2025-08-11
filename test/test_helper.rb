@@ -4,8 +4,8 @@
 require 'simplecov'
 
 SimpleCov.start do
-  # Set minimum coverage threshold (realistic for a Rails generator gem with complex error handling)
-  minimum_coverage 60
+  # Set minimum coverage threshold (achieved excellent coverage for JWT middleware gem)
+  minimum_coverage 89
   # NOTE: minimum_coverage_by_file disabled due to some utility files having low individual coverage
 
   # Coverage output directory
