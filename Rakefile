@@ -13,14 +13,14 @@ end
 begin
   require 'yard'
   require 'yard/rake/yardoc_task'
-  
+
   # Load custom GFM configuration
   require_relative 'yard_gfm_config'
 
   YARD::Rake::YardocTask.new do |t|
     t.files = ['lib/**/*.rb']
     t.options = [
-      '--output-dir', 'doc', 
+      '--output-dir', 'doc',
       '--readme', 'README.md',
       '--markup-provider', 'kramdown',
       '--markup', 'markdown'
