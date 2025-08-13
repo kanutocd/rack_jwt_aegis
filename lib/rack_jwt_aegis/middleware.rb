@@ -25,6 +25,8 @@ module RackJwtAegis
   #     skip_paths: ['/health', '/api/public/*']
   #   }
   class Middleware
+    include DebugLogger
+
     # Initialize the middleware
     #
     # @param app [#call] the Rack application
@@ -176,16 +178,6 @@ module RackJwtAegis
                    Available fields: #{payload.keys}".squeeze)
         []
       end
-    end
-
-    # Log debug message if debug mode is enabled
-    #
-    # @param message [String] the message to log
-    def debug_log(message)
-      return unless @config.debug_mode?
-
-      timestamp = Time.now.strftime('%Y-%m-%d %H:%M:%S.%L')
-      puts "[#{timestamp}] RackJwtAegis: #{message}"
     end
   end
 end

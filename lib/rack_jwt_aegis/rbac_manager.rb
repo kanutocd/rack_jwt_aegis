@@ -15,6 +15,8 @@ module RackJwtAegis
   #   manager = RbacManager.new(config)
   #   manager.authorize(request, jwt_payload)
   class RbacManager
+    include DebugLogger
+
     CACHE_TTL = 300 # 5 minutes default cache TTL
 
     # Initialize the RBAC manager
@@ -430,14 +432,6 @@ module RackJwtAegis
     rescue StandardError => e
       debug_log("RbacManager: Cache format validation error: #{e.message}", :warn)
       false
-    end
-
-    # Log debug message if debug mode is enabled
-    def debug_log(message, level = :info)
-      return unless @config.debug_mode?
-
-      timestamp = Time.now.strftime('%Y-%m-%d %H:%M:%S.%L')
-      send(level, "[#{timestamp}] RbacManager: #{message}")
     end
   end
 end

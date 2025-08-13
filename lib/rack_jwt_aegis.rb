@@ -2,6 +2,7 @@
 
 require_relative 'rack_jwt_aegis/version'
 require_relative 'rack_jwt_aegis/configuration'
+require_relative 'rack_jwt_aegis/debug_logger'
 require_relative 'rack_jwt_aegis/middleware'
 require_relative 'rack_jwt_aegis/jwt_validator'
 require_relative 'rack_jwt_aegis/multi_tenant_validator'
