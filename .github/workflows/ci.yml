@@ -24,7 +24,7 @@ jobs:
           bundler-cache: false
 
       - name: Run tests
-        run: bundle exec rake test
+        run: bundle install && bundle exec rake test
 
       - name: Upload coverage to Codecov (Ruby 3.4 only)
         if: matrix.ruby-version == '3.4'
@@ -47,7 +47,7 @@ jobs:
           bundler-cache: false
 
       - name: Run RuboCop
-        run: bundle exec rubocop
+        run: bundle install && bundle exec rubocop
 
       - name: Run security audit
         run: |
@@ -72,4 +72,4 @@ jobs:
           bundler-cache: false
 
       - name: Run tests
-        run: bundle exec rake test
+        run: bundle install && bundle exec rake test

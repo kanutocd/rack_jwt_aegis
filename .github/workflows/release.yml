@@ -18,10 +18,10 @@ jobs:
           bundler-cache: false
 
       - name: Run tests
-        run: bundle exec rake test
+        run: bundle install && bundle exec rake test
 
       - name: Run RuboCop
-        run: bundle exec rubocop
+        run: bundle install && bundle exec rubocop
 
   publish:
     needs: test
