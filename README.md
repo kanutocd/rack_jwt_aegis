@@ -46,25 +46,25 @@ Rack JWT Aegis includes a command-line tool for generating secure JWT secrets:
 
 ```bash
   # Generate a secure JWT secret
-  rack-jwt-aegis secret
+  rack_jwt_aegis secret
 
   # Generate base64-encoded secret
-  rack-jwt-aegis secret --format base64
+  rack_jwt_aegis secret --format base64
 
   # Generate secret in environment variable format
-  rack-jwt-aegis secret --env
+  rack_jwt_aegis secret --env
 
   # Generate multiple secrets
-  rack-jwt-aegis secret --count 3
+  rack_jwt_aegis secret --count 3
 
   # Quiet mode (secret only)
-  rack-jwt-aegis secret --quiet
+  rack_jwt_aegis secret --quiet
 
   # Custom length (32 bytes)
-  rack-jwt-aegis secret --length 32
+  rack_jwt_aegis secret --length 32
 
   # Show help
-  rack-jwt-aegis --help
+  rack_jwt_aegis --help
 ```
 
 ### Security Features
