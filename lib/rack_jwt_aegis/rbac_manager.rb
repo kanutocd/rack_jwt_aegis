@@ -94,7 +94,7 @@ module RackJwtAegis
         return nil if user_permissions.nil? || !user_permissions.is_a?(Hash)
 
         # First check: If RBAC permissions were updated recently, nuke ALL cached permissions
-        rbac_last_update = get_rbac_last_update_timestamp
+        rbac_last_update = rbac_last_update_timestamp
         if rbac_last_update
           current_time = Time.now.to_i
           rbac_update_age = current_time - rbac_last_update
@@ -123,7 +123,8 @@ module RackJwtAegis
 
         # Permission is fresh
         if @config.debug_mode?
-          debug_log("Cache hit: #{permission_key} (permission age: #{permission_age}s, RBAC age: #{rbac_update_age || 'unknown'}s)")
+          debug_log("Cache hit: #{permission_key} (permission age: \
+                    #{permission_age}s, RBAC age: #{rbac_update_age || 'unknown'}s)".squeeze)
         end
         true
       rescue CacheError => e
@@ -138,7 +139,7 @@ module RackJwtAegis
 
       # Check if RBAC data exists and is valid
       if rbac_data.is_a?(Hash) && validate_rbac_cache_format(rbac_data)
-        return check_rbac_format(user_id, request, rbac_data)
+        return check_rbac_format?(user_id, request, rbac_data)
       end
 
       # No valid RBAC data found
@@ -172,7 +173,7 @@ module RackJwtAegis
       end
     end
 
-    def check_rbac_format(user_id, request, rbac_data)
+    def check_rbac_format?(user_id, request, rbac_data)
       # Extract user roles from JWT payload
       user_roles = extract_user_roles_from_request(request)
       if user_roles.nil? || user_roles.empty?
@@ -202,7 +203,7 @@ module RackJwtAegis
     end
 
     # Get RBAC permissions collection last_update timestamp
-    def get_rbac_last_update_timestamp
+    def rbac_last_update_timestamp
       return nil unless @rbac_cache
 
       begin
@@ -262,7 +263,7 @@ module RackJwtAegis
     end
 
     # Check if any role permission matches the request
-    def check_role_permissions(permissions, request)
+    def check_role_permissions?(permissions, request)
       return false unless permissions.is_a?(Array)
 
       request_path = extract_api_path_from_request(request)

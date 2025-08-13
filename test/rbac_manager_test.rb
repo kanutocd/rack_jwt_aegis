@@ -101,7 +101,7 @@ class RbacManagerTest < Minitest::Test
     permission_cache = manager.instance_variable_get(:@permission_cache)
     permission_cache.expects(:read).with('user_permissions').returns({})
 
-    # Mock RBAC cache to throw error when checking permissions (called twice - once in get_rbac_last_update_timestamp, once in check_rbac_permission)
+    # Mock RBAC cache to throw error when checking permissions (called twice - once in rbac_last_update_timestamp, once in check_rbac_permission)
     rbac_cache = manager.instance_variable_get(:@rbac_cache)
     rbac_cache.expects(:read).with('permissions').raises(RackJwtAegis::CacheError.new('Connection failed')).twice
 
@@ -437,12 +437,12 @@ class RbacManagerTest < Minitest::Test
     assert_equal '', extracted
   end
 
-  def test_get_rbac_last_update_timestamp_edge_cases
+  def test_rbac_last_update_timestamp_edge_cases
     # Test with nil rbac_cache by setting it manually
     original_cache = @manager.instance_variable_get(:@rbac_cache)
     @manager.instance_variable_set(:@rbac_cache, nil)
 
-    result = @manager.send(:get_rbac_last_update_timestamp)
+    result = @manager.send(:rbac_last_update_timestamp)
 
     assert_nil result
 
@@ -453,14 +453,14 @@ class RbacManagerTest < Minitest::Test
     # Test with missing last_update field
     rbac_cache.write('permissions', { 'permissions' => [] })
 
-    result = @manager.send(:get_rbac_last_update_timestamp)
+    result = @manager.send(:rbac_last_update_timestamp)
 
     assert_nil result
 
     # Test with non-hash data
     rbac_cache.write('permissions', 'not-a-hash')
 
-    result = @manager.send(:get_rbac_last_update_timestamp)
+    result = @manager.send(:rbac_last_update_timestamp)
 
     assert_nil result
   end
@@ -485,7 +485,7 @@ class RbacManagerTest < Minitest::Test
     assert_match(/stale permission removal error/, warning_output)
   end
 
-  def test_check_rbac_format_with_role_id_as_integer
+  def test_check_rbac_format?(_with_role_id_as_integer)
     @request.env['rack_jwt_aegis.user_roles'] = [123] # Integer role ID
 
     # Setup RBAC data with integer role keys
@@ -496,7 +496,7 @@ class RbacManagerTest < Minitest::Test
       ],
     }
 
-    result = @manager.send(:check_rbac_format, 123, @request, rbac_data)
+    result = @manager.send(:check_rbac_format?, 123, @request, rbac_data)
 
     assert result
   end

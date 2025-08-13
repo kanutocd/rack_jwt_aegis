@@ -3,18 +3,18 @@
 
 require 'fileutils'
 
-puts "🔧 Generating documentation..."
+puts '🔧 Generating documentation...'
 system('bundle exec yard doc')
 
 puts "\n📊 Documentation coverage:"
 system('bundle exec yard stats --list-undoc')
 
 puts "\n✅ Documentation generated successfully!"
-puts "📂 Open doc/index.html in your browser to view the documentation"
+puts '📂 Open doc/index.html in your browser to view the documentation'
 
 # Check if we're in a git repository and suggest deployment
 if system('git rev-parse --git-dir > /dev/null 2>&1')
   puts "\n💡 To deploy to GitHub Pages:"
   puts "   git add . && git commit -m 'Update documentation' && git push"
-  puts "   Or trigger manually via GitHub Actions workflow dispatch"
+  puts '   Or trigger manually via GitHub Actions workflow dispatch'
 end
