@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.2] - 2025-08-13
+
+### 🔧 Fixed
+
+- Add :validate_tenant_id configuration and incorporate this to the MultiTenantValidator#validate_tenant_id_header
+
+#### Code Quality & Maintenance
+
+- Refactor the Configuration and MultiTenantValidator
+
 ## [1.0.1] - 2025-08-13
 
 ### 🔧 Fixed
@@ -23,7 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Developer Experience
 
 - **Consistent Logging**: Unified debug log format across all components with automatic timestamp formatting
-- **Component Identification**: Automatic component name inference for better log traceability  
+- **Component Identification**: Automatic component name inference for better log traceability
 - **Configurable Log Levels**: Support for info, warn, and error log levels with appropriate output streams
 
 ### 🏗️ Technical Details
@@ -37,7 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Testing & Quality
 
 - **Test Suite**: All 340 tests pass with 975 assertions
-- **Coverage Maintained**: 98.17% line coverage, 92.83% branch coverage  
+- **Coverage Maintained**: 98.17% line coverage, 92.83% branch coverage
 - **RBAC Integration**: Verified all role-based authorization tests pass after refactoring
 - **Zero Regression**: No functional changes, only structural improvements
 
