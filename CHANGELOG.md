@@ -5,6 +5,44 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2025-08-13
+
+### 🔧 Fixed
+
+#### Code Quality & Maintenance
+
+- **DRY Refactoring**: Eliminated duplicate `debug_log` method implementations by creating a shared `DebugLogger` module
+  - Created `lib/rack_jwt_aegis/debug_logger.rb` with consistent debug logging functionality
+  - Updated `Middleware` and `RbacManager` classes to include the shared module
+  - Improved code maintainability by centralizing debug logging logic
+  - Maintains all existing functionality and logging behavior
+- **RBAC Cache Validation**: Enhanced wildcard permission validation in `validate_rbac_cache_format` to support `admin/*` patterns
+- **JWT Payload Resolution**: Fixed JWT payload key resolution to handle string keys consistently across components
+- **Test Coverage**: Maintained high test coverage (98.17% line coverage) after refactoring
+
+#### Developer Experience
+
+- **Consistent Logging**: Unified debug log format across all components with automatic timestamp formatting
+- **Component Identification**: Automatic component name inference for better log traceability  
+- **Configurable Log Levels**: Support for info, warn, and error log levels with appropriate output streams
+
+### 🏗️ Technical Details
+
+#### Architecture Improvements
+
+- **Shared Module Pattern**: Introduced consistent module inclusion pattern for cross-cutting concerns
+- **Code Organization**: Better separation of concerns with dedicated debug logging module
+- **Maintainability**: Reduced code duplication from ~40 lines to a single shared implementation
+
+#### Testing & Quality
+
+- **Test Suite**: All 340 tests pass with 975 assertions
+- **Coverage Maintained**: 98.17% line coverage, 92.83% branch coverage  
+- **RBAC Integration**: Verified all role-based authorization tests pass after refactoring
+- **Zero Regression**: No functional changes, only structural improvements
+
+---
+
 ## [1.0.0] - 2025-08-13
 
 ### 🎉 Initial Release
@@ -201,4 +239,5 @@ This 1.0.0 release represents a production-ready JWT authentication middleware w
 
 **Deprecations**: None (initial release).
 
+[1.0.1]: https://github.com/kanutocd/rack_jwt_aegis/releases/tag/v1.0.1
 [1.0.0]: https://github.com/kanutocd/rack_jwt_aegis/releases/tag/v1.0.0
