@@ -485,7 +485,7 @@ class RbacManagerTest < Minitest::Test
     assert_match(/stale permission removal error/, warning_output)
   end
 
-  def test_check_rbac_format?(_with_role_id_as_integer)
+  def test_check_rbac_format?
     @request.env['rack_jwt_aegis.user_roles'] = [123] # Integer role ID
 
     # Setup RBAC data with integer role keys
