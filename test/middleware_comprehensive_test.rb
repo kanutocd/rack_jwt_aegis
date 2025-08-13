@@ -313,6 +313,189 @@ class MiddlewareComprehensiveTest < Minitest::Test
     assert_equal 123, env[RackJwtAegis::RequestContext::USER_ID_KEY]
   end
 
+  def test_extract_user_roles_with_roles_array
+    config = {
+      jwt_secret: 'test-secret',
+      rbac_enabled: true,
+      rbac_cache_store: :memory,
+    }
+    middleware = RackJwtAegis::Middleware.new(@app, config)
+
+    payload = { 'roles' => ['admin', 'user', 123] }
+    roles = middleware.send(:extract_user_roles, payload)
+
+    assert_equal ['admin', 'user', '123'], roles
+  end
+
+  def test_extract_user_roles_with_single_role_string
+    config = {
+      jwt_secret: 'test-secret',
+      rbac_enabled: true,
+      rbac_cache_store: :memory,
+    }
+    middleware = RackJwtAegis::Middleware.new(@app, config)
+
+    payload = { 'role' => 'admin' }
+    roles = middleware.send(:extract_user_roles, payload)
+
+    assert_equal ['admin'], roles
+  end
+
+  def test_extract_user_roles_with_single_role_integer
+    config = {
+      jwt_secret: 'test-secret',
+      rbac_enabled: true,
+      rbac_cache_store: :memory,
+    }
+    middleware = RackJwtAegis::Middleware.new(@app, config)
+
+    payload = { 'user_roles' => 123 }
+    roles = middleware.send(:extract_user_roles, payload)
+
+    assert_equal ['123'], roles
+  end
+
+  def test_extract_user_roles_with_role_ids
+    config = {
+      jwt_secret: 'test-secret',
+      rbac_enabled: true,
+      rbac_cache_store: :memory,
+    }
+    middleware = RackJwtAegis::Middleware.new(@app, config)
+
+    payload = { 'role_ids' => [1, 2, 3] }
+    roles = middleware.send(:extract_user_roles, payload)
+
+    assert_equal ['1', '2', '3'], roles
+  end
+
+  def test_extract_user_roles_with_no_roles
+    config = {
+      jwt_secret: 'test-secret',
+      rbac_enabled: true,
+      rbac_cache_store: :memory,
+      debug_mode: true,
+    }
+    middleware = RackJwtAegis::Middleware.new(@app, config)
+
+    payload = { 'user_id' => 123, 'some_other_field' => 'value' }
+    
+    # Capture debug log output
+    output = capture_io do
+      roles = middleware.send(:extract_user_roles, payload)
+      assert_equal [], roles
+    end
+
+    assert_match(/Warning: No valid roles found in JWT payload/, output.first)
+  end
+
+  def test_extract_user_roles_with_invalid_type
+    config = {
+      jwt_secret: 'test-secret',
+      rbac_enabled: true,
+      rbac_cache_store: :memory,
+      debug_mode: true,
+    }
+    middleware = RackJwtAegis::Middleware.new(@app, config)
+
+    payload = { 'roles' => { 'invalid' => 'hash' } }
+    
+    # Capture debug log output
+    output = capture_io do
+      roles = middleware.send(:extract_user_roles, payload)
+      assert_equal [], roles
+    end
+
+    assert_match(/Warning: No valid roles found in JWT payload/, output.first)
+  end
+
+  def test_extract_jwt_token_with_only_whitespace_after_bearer  
+    config = { jwt_secret: 'test-secret' }
+    middleware = RackJwtAegis::Middleware.new(@app, config)
+
+    # The regex (.+) actually will match spaces, so this should match and extract the spaces
+    # But then the token.empty? check should trigger "JWT token missing"
+    # Let me use newlines or tabs which might be treated as empty when trimmed
+    env = Rack::MockRequest.env_for(
+      'http://example.com/api/users',
+      'HTTP_AUTHORIZATION' => "Bearer \t\n ",  # Tab and newline
+    )
+
+    status, _headers, body = middleware.call(env)
+
+    assert_equal 401, status
+
+    response_data = JSON.parse(body.first)
+
+    # The regex will match, but JWT validation will fail
+    assert_match(/Invalid JWT token/, response_data['error'])
+  end
+
+  def test_extract_jwt_token_bearer_without_space
+    config = { jwt_secret: 'test-secret' }
+    middleware = RackJwtAegis::Middleware.new(@app, config)
+
+    # Test edge case: "Bearer" without any space or token
+    env = Rack::MockRequest.env_for(
+      'http://example.com/api/users',
+      'HTTP_AUTHORIZATION' => 'Bearer'
+    )
+
+    status, _headers, body = middleware.call(env)
+
+    assert_equal 401, status
+
+    response_data = JSON.parse(body.first)
+
+    assert_equal 'Invalid authorization header format', response_data['error']
+  end
+
+  def test_empty_authorization_header_string
+    config = { jwt_secret: 'test-secret' }
+    middleware = RackJwtAegis::Middleware.new(@app, config)
+
+    # Test with empty string authorization header
+    env = Rack::MockRequest.env_for(
+      'http://example.com/api/users',
+      'HTTP_AUTHORIZATION' => ''
+    )
+
+    status, _headers, body = middleware.call(env)
+
+    assert_equal 401, status
+
+    response_data = JSON.parse(body.first)
+
+    assert_equal 'Authorization header missing', response_data['error']
+  end
+
+  def test_rbac_user_roles_extraction_and_setting
+    config = {
+      jwt_secret: 'test-secret',
+      rbac_enabled: true,
+      rbac_cache_store: :memory,
+      cache_write_enabled: true,
+    }
+    middleware = RackJwtAegis::Middleware.new(@app, config)
+
+    # Mock RBAC manager to allow the request
+    rbac_manager = middleware.instance_variable_get(:@rbac_manager)
+    rbac_manager.stubs(:authorize).returns(true)
+
+    payload = { 'user_id' => 123, 'roles' => ['admin', 'user'] }
+    env = Rack::MockRequest.env_for(
+      'http://example.com/api/users',
+      'HTTP_AUTHORIZATION' => "Bearer #{generate_jwt_token(payload)}"
+    )
+
+    status, _headers, _body = middleware.call(env)
+
+    assert_equal 200, status
+
+    # Verify user roles were set in environment
+    assert_equal ['admin', 'user'], env['rack_jwt_aegis.user_roles']
+  end
+
   private
 
   def capture_io
