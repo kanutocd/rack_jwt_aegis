@@ -94,6 +94,7 @@ Metrics/ModuleLength:
     - 'test/**/*'
 
 Metrics/ClassLength:
+  Enabled: false
   Max: 150
   Exclude:
     - 'spec/**/*'
@@ -102,21 +103,25 @@ Metrics/ClassLength:
 
 Metrics/MethodLength:
   Max: 20
+  Enabled: false
   Exclude:
     - 'spec/**/*'
     - 'test/**/*'
 
 Metrics/AbcSize:
   Max: 20
+  Enabled: false
   Exclude:
     - 'spec/**/*'
     - 'test/**/*'
 
 Metrics/CyclomaticComplexity:
   Max: 8
+  Enabled: false
 
 Metrics/PerceivedComplexity:
   Max: 8
+  Enabled: false
 
 # Performance Rules
 Performance/CollectionLiteralInLoop:

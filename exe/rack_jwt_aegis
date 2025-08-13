@@ -30,7 +30,7 @@ class RackJwtAegisCLI
 
   private
 
-  def parse_options(args) # rubocop:disable Metrics/MethodLength,Metrics/AbcSize
+  def parse_options(args)
     @command = :generate_secret # default command
 
     OptionParser.new do |opts| # rubocop:disable Metrics/BlockLength
