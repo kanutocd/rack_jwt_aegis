@@ -24,7 +24,7 @@ jobs:
 
       - name: Run tests with coverage
         run: |
-          bundle install && bundle exec rake test
+          bundle install && COVERAGE=true bundle exec rake test
 
       - name: Generate coverage report
         run: |
@@ -42,4 +42,4 @@ jobs:
           fail_ci_if_error: false
           verbose: true
           use_oidc: true
-          files: ./coverage.xml,./coverage/coverage.xml,./coverage/.resultset.json
+          files: ./coverage/coverage.xml
