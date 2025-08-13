@@ -128,9 +128,19 @@ RackJwtAegis::Middleware.new(app, {
   jwt_algorithm: 'HS256',  # Default: 'HS256'
 
   # Multi-Tenant Settings
+  validate_tenant_id: true, # Default: false
   tenant_id_header_name: 'X-Tenant-Id',  # Default: 'X-Tenant-Id'
   validate_subdomain: true,     # Default: false
   validate_pathname_slug: true,  # Default: false
+
+  # Default Payload Mapping:
+  payload_mapping: {
+    user_id: :user_id,
+    tenant_id: :tenant_id,
+    subdomain: :subdomain,
+    pathname_slugs: :pathname_slugs,
+    role_ids: :role_ids,
+  },
 
   # Path Configuration
   skip_paths: ['/health', '/api/v1/login'],

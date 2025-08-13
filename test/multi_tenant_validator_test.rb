@@ -23,7 +23,7 @@ class MultiTenantValidatorTest < Minitest::Test
     payload = {
       'user_id' => 123,
       'tenant_id' => 456,
-      'subdomain' => 'acme-corp.example.com',
+      'subdomain' => 'acme-corp',
       'pathname_slugs' => ['acme-widgets', 'acme-services'],
     }
 
@@ -36,7 +36,7 @@ class MultiTenantValidatorTest < Minitest::Test
     validator = RackJwtAegis::MultiTenantValidator.new(config)
 
     request = rack_request(host: 'acme-corp.example.com')
-    payload = { 'subdomain' => 'acme-corp.example.com' }
+    payload = { 'subdomain' => 'acme-corp' }
 
     # Should not raise an error
     validator.validate(request, payload)
@@ -88,7 +88,7 @@ class MultiTenantValidatorTest < Minitest::Test
     validator = RackJwtAegis::MultiTenantValidator.new(config)
 
     request = rack_request(host: 'ACME-CORP.example.com')
-    payload = { 'subdomain' => 'acme-corp.example.com' }
+    payload = { 'subdomain' => 'acme-corp' }
 
     # Should not raise an error (case insensitive)
     validator.validate(request, payload)
@@ -100,7 +100,7 @@ class MultiTenantValidatorTest < Minitest::Test
 
     request = rack_request(host: '')
     request.stubs(:host).returns(nil)
-    payload = { 'subdomain' => 'acme-corp.example.com' }
+    payload = { 'subdomain' => 'acme-corp' }
 
     # Should skip validation when host is nil/empty
     validator.validate(request, payload)
@@ -182,8 +182,9 @@ class MultiTenantValidatorTest < Minitest::Test
     assert_match(/\["acme-widgets", "acme-services"\]/, error.message)
   end
 
-  def test_validate_tenant_id_header_success
-    config = RackJwtAegis::Configuration.new(basic_config.merge(tenant_id_header_name: 'X-Tenant-Id'))
+  def test_validate_tenant_id_success
+    config = RackJwtAegis::Configuration.new(basic_config.merge(validate_tenant_id: true,
+                                                                tenant_id_header_name: 'X-Tenant-Id'))
     validator = RackJwtAegis::MultiTenantValidator.new(config)
 
     request = rack_request(headers: { 'X-Tenant-Id' => '456' })
@@ -193,7 +194,7 @@ class MultiTenantValidatorTest < Minitest::Test
     validator.validate(request, payload)
   end
 
-  def test_validate_tenant_id_header_string_to_int_match
+  def test_validate_tenant_id_string_to_int_match
     config = RackJwtAegis::Configuration.new(basic_config.merge(tenant_id_header_name: 'X-Tenant-Id'))
     validator = RackJwtAegis::MultiTenantValidator.new(config)
 
@@ -204,7 +205,7 @@ class MultiTenantValidatorTest < Minitest::Test
     validator.validate(request, payload)
   end
 
-  def test_validate_tenant_id_header_no_header
+  def test_validate_tenant_id_no_header
     config = RackJwtAegis::Configuration.new(basic_config.merge(tenant_id_header_name: 'X-Tenant-Id'))
     validator = RackJwtAegis::MultiTenantValidator.new(config)
 
@@ -215,8 +216,9 @@ class MultiTenantValidatorTest < Minitest::Test
     validator.validate(request, payload)
   end
 
-  def test_validate_tenant_id_header_missing_jwt_tenant_id
-    config = RackJwtAegis::Configuration.new(basic_config.merge(tenant_id_header_name: 'X-Tenant-Id'))
+  def test_validate_tenant_id_missing_jwt_tenant_id
+    config = RackJwtAegis::Configuration.new(basic_config.merge(validate_tenant_id: true,
+                                                                tenant_id_header_name: 'X-Tenant-Id'))
     validator = RackJwtAegis::MultiTenantValidator.new(config)
 
     request = rack_request(headers: { 'X-Tenant-Id' => '456' })
@@ -228,8 +230,9 @@ class MultiTenantValidatorTest < Minitest::Test
     assert_equal 'JWT payload missing tenant_id for header validation', error.message
   end
 
-  def test_validate_tenant_id_header_mismatch
-    config = RackJwtAegis::Configuration.new(basic_config.merge(tenant_id_header_name: 'X-Tenant-Id'))
+  def test_validate_tenant_id_mismatch
+    config = RackJwtAegis::Configuration.new(basic_config.merge(validate_tenant_id: true,
+                                                                tenant_id_header_name: 'X-Tenant-Id'))
     validator = RackJwtAegis::MultiTenantValidator.new(config)
 
     request = rack_request(headers: { 'X-Tenant-Id' => '456' })
@@ -238,7 +241,7 @@ class MultiTenantValidatorTest < Minitest::Test
     error = assert_raises(RackJwtAegis::AuthorizationError) do
       validator.validate(request, payload)
     end
-    assert_match(/Company group header mismatch/, error.message)
+    assert_match(/Tenant id header mismatch/, error.message)
     assert_match(/456.*789/, error.message)
   end
 
@@ -253,47 +256,27 @@ class MultiTenantValidatorTest < Minitest::Test
     assert_nil validator.send(:extract_subdomain, nil) # Nil
   end
 
-  def test_extract_company_slug_from_path
+  def test_extract_slug_from_path
     validator = @validator
 
-    assert_equal 'acme-widgets', validator.send(:extract_company_slug_from_path, '/api/v1/acme-widgets/products')
-    assert_equal 'company-a', validator.send(:extract_company_slug_from_path, '/api/v1/company-a/users/123')
-    assert_nil validator.send(:extract_company_slug_from_path, '/api/v1/public') # No match
-    assert_nil validator.send(:extract_company_slug_from_path, '/health') # No match
-    assert_nil validator.send(:extract_company_slug_from_path, '') # Empty
-    assert_nil validator.send(:extract_company_slug_from_path, nil) # Nil
+    assert_equal 'acme-widgets', validator.send(:extract_slug_from_path, '/api/v1/acme-widgets/products')
+    assert_equal 'company-a', validator.send(:extract_slug_from_path, '/api/v1/company-a/users/123')
+    assert_equal 'company-b', validator.send(:extract_slug_from_path, '/api/v1/COMPANY-B/users/123')
+    assert_nil validator.send(:extract_slug_from_path, '/api/v1/public') # No match
+    assert_nil validator.send(:extract_slug_from_path, '/health') # No match
+    assert_nil validator.send(:extract_slug_from_path, '') # Empty
+    assert_nil validator.send(:extract_slug_from_path, nil) # Nil
   end
 
-  def test_extract_company_slug_with_custom_pattern
+  def test_extract_pathname_slug_with_custom_pattern
     config = RackJwtAegis::Configuration.new(basic_config.merge(
                                                validate_pathname_slug: true,
                                                pathname_slug_pattern: %r{^/company/([^/]+)/},
                                              ))
     validator = RackJwtAegis::MultiTenantValidator.new(config)
 
-    assert_equal 'acme', validator.send(:extract_company_slug_from_path, '/company/acme/dashboard')
-    assert_nil validator.send(:extract_company_slug_from_path, '/api/v1/acme/products') # Doesn't match custom pattern
-  end
-
-  def test_subdomains_match
-    validator = @validator
-
-    # Exact matches
-    assert validator.send(:subdomains_match?, 'acme', 'acme')
-
-    # Case insensitive
-    assert validator.send(:subdomains_match?, 'ACME', 'acme')
-    assert validator.send(:subdomains_match?, 'acme', 'ACME')
-
-    # Both nil
-    assert validator.send(:subdomains_match?, nil, nil)
-
-    # One nil
-    refute validator.send(:subdomains_match?, 'acme', nil)
-    refute validator.send(:subdomains_match?, nil, 'acme')
-
-    # Different values
-    refute validator.send(:subdomains_match?, 'acme', 'different')
+    assert_equal 'acme', validator.send(:extract_slug_from_path, '/company/acme/dashboard')
+    assert_nil validator.send(:extract_slug_from_path, '/api/v1/acme/products') # Doesn't match custom pattern
   end
 
   def test_validate_skips_disabled_validations
@@ -320,7 +303,7 @@ class MultiTenantValidatorTest < Minitest::Test
                                                validate_pathname_slug: true,
                                                tenant_id_header_name: 'X-Company-Group-Id',
                                                payload_mapping: {
-                                                 subdomain: :company_domain,
+                                                 subdomain: :company_group_domain,
                                                  pathname_slugs: :accessible_companies,
                                                  tenant_id: :company_group_id,
                                                },
@@ -336,11 +319,14 @@ class MultiTenantValidatorTest < Minitest::Test
     payload = {
       'user_id' => 123,
       'company_group_id' => 789,
-      'company_domain' => 'acme-corp.example.com',
+      'company_group_domain' => 'acme-corp',
       'accessible_companies' => ['widgets-division', 'services-division'],
     }
-
     # Should not raise an error with custom payload mapping
+    validator.validate(request, payload)
+
+    # Case insensitive matching of pathname slugs
+    payload['accessible_companies'] = ['WIDGETS-DIVISION', 'services-division']
     validator.validate(request, payload)
   end
 
