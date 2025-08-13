@@ -23,10 +23,6 @@ GEM
     json (2.13.2)
     jwt (3.1.2)
       base64
-    kramdown (2.5.1)
-      rexml (>= 3.3.9)
-    kramdown-parser-gfm (1.1.0)
-      kramdown (~> 2.0)
     language_server-protocol (3.17.0.5)
     lint_roller (1.1.0)
     minitest (5.25.5)
@@ -52,6 +48,7 @@ GEM
     rdoc (6.14.2)
       erb
       psych (>= 4.0.0)
+    redcarpet (3.6.1)
     redis (5.4.1)
       redis-client (>= 0.22.0)
     redis-client (0.25.2)
@@ -59,7 +56,6 @@ GEM
     regexp_parser (2.11.2)
     reline (0.6.2)
       io-console (~> 0.5)
-    rexml (3.4.1)
     rubocop (1.79.2)
       json (~> 2.3)
       language_server-protocol (~> 3.17.0.2)
@@ -107,13 +103,12 @@ PLATFORMS
 DEPENDENCIES
   dalli (~> 3.0)
   irb (~> 1.15)
-  kramdown (~> 2.5)
-  kramdown-parser-gfm (~> 1.1)
   minitest (~> 5.25)
   mocha (~> 2.7)
   rack-test (~> 2.2)
   rack_jwt_aegis!
   rake (~> 13.3)
+  redcarpet (~> 3.6)
   redis (~> 5.0)
   rubocop (~> 1.79)
   rubocop-minitest (~> 0.38.1)

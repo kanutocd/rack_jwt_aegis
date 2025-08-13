@@ -1,16 +1,14 @@
 --output-dir doc
 --readme README.md
---markup-provider=kramdown
---markup=markdown
 --main README.md
+--markup=markdown
 --protected
 --private
 --no-private
---title "RackJwtAegis API Documentation"
+--title "RackJwtAegis Rack Middleware API Documentation"
 --charset utf-8
 lib/**/*.rb
 -
 README.md
 LICENSE.txt
 CODE_OF_CONDUCT.md
-adrs/architecture.md

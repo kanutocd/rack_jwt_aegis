@@ -6,7 +6,7 @@
 [![Ruby Version](https://img.shields.io/badge/ruby-%3E%3D%203.1.0-ruby.svg)](https://www.ruby-lang.org/en/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-JWT authentication middleware for hierarchical multi-tenant Rack applications with 2-level tenant support.
+JWT authentication and authorization middleware for hierarchical multi-tenant Rack applications with 2-level tenant support.
 
 ## Features
 
