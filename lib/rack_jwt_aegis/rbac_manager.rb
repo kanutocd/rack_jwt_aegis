@@ -122,14 +122,12 @@ module RackJwtAegis
         end
 
         # Permission is fresh
-        if @config.debug_mode?
-          debug_log("Cache hit: #{permission_key} (permission age: \
-                    #{permission_age}s, RBAC age: #{rbac_update_age || 'unknown'}s)".squeeze)
-        end
+        debug_log("Cache hit: #{permission_key} (permission age: \
+                  #{permission_age}s, RBAC age: #{rbac_update_age || 'unknown'}s)".squeeze)
         true
       rescue CacheError => e
         # Log cache error but don't fail the request
-        warn "RbacManager cache read error: #{e.message}" if @config.debug_mode?
+        debug_log("RbacManager cache read error: #{e.message}", :warn)
         nil
       end
     end
@@ -146,7 +144,7 @@ module RackJwtAegis
       false
     rescue CacheError => e
       # Cache error - fail secure (deny access)
-      warn "RbacManager RBAC cache error: #{e.message}" if @config.debug_mode?
+      debug_log("RbacManager RBAC cache error: #{e.message}", :warn)
       false
     end
 
@@ -166,10 +164,10 @@ module RackJwtAegis
         # Write back to cache
         @permission_cache.write('user_permissions', user_permissions, expires_in: CACHE_TTL)
 
-        debug_log("Cached permission: #{permission_key} => #{current_time}") if @config.debug_mode?
+        debug_log("Cached permission: #{permission_key} => #{current_time}")
       rescue CacheError => e
         # Log cache error but don't fail the request
-        warn "RbacManager permission cache write error: #{e.message}" if @config.debug_mode?
+        debug_log("RbacManager permission cache write error: #{e.message}", :warn)
       end
     end
 
@@ -177,7 +175,7 @@ module RackJwtAegis
       # Extract user roles from JWT payload
       user_roles = extract_user_roles_from_request(request)
       if user_roles.nil? || user_roles.empty?
-        warn 'RbacManager: No user roles found in request context' if @config.debug_mode?
+        debug_log('RbacManager: No user roles found in request context', :warn)
         return false
       end
 
@@ -214,7 +212,7 @@ module RackJwtAegis
 
         nil
       rescue CacheError => e
-        warn "RbacManager RBAC last-update read error: #{e.message}" if @config.debug_mode?
+        debug_log("RbacManager RBAC last-update read error: #{e.message}", :warn)
         nil
       end
     end
@@ -233,14 +231,14 @@ module RackJwtAegis
         # If no permissions remain, remove the entire cache
         if user_permissions.empty?
           @permission_cache.delete('user_permissions')
-          debug_log("Removed last permission, cleared entire cache: #{reason}") if @config.debug_mode?
+          debug_log("Removed last permission, cleared entire cache: #{reason}")
         else
           # Update the cache with the modified permissions
           @permission_cache.write('user_permissions', user_permissions, expires_in: CACHE_TTL)
-          debug_log("Removed stale permission #{permission_key}: #{reason}") if @config.debug_mode?
+          debug_log("Removed stale permission #{permission_key}: #{reason}")
         end
       rescue CacheError => e
-        warn "RbacManager stale permission removal error: #{e.message}" if @config.debug_mode?
+        debug_log("RbacManager stale permission removal error: #{e.message}", :warn)
       end
     end
 
@@ -250,9 +248,9 @@ module RackJwtAegis
 
       begin
         @permission_cache.delete('user_permissions')
-        debug_log("Nuked user permissions cache: #{reason}") if @config.debug_mode?
+        debug_log("Nuked user permissions cache: #{reason}")
       rescue CacheError => e
-        warn "RbacManager cache nuke error: #{e.message}" if @config.debug_mode?
+        debug_log("RbacManager cache nuke error: #{e.message}", :warn)
       end
     end
 
@@ -313,10 +311,10 @@ module RackJwtAegis
         # Write back to cache
         @permission_cache.write('user_permissions', user_permissions, expires_in: CACHE_TTL)
 
-        debug_log("Cached user permission: #{permission_key} => #{current_time}") if @config.debug_mode?
+        debug_log("Cached user permission: #{permission_key} => #{current_time}")
       rescue CacheError => e
         # Log cache error but don't fail the request
-        warn "RbacManager permission cache write error: #{e.message}" if @config.debug_mode?
+        debug_log("RbacManager permission cache write error: #{e.message}", :warn)
       end
     end
 
@@ -380,7 +378,7 @@ module RackJwtAegis
           regex = Regexp.new(regex_pattern)
           return regex.match?(resource_path)
         rescue RegexpError => e
-          warn "RbacManager: Invalid regex pattern '#{regex_pattern}': #{e.message}" if @config.debug_mode?
+          debug_log("RbacManager: Invalid regex pattern '#{regex_pattern}': #{e.message}", :warn)
           return false
         end
       end
@@ -422,6 +420,7 @@ module RackJwtAegis
           # Each permission should be a string in format "endpoint:method"
           role_permissions.each do |permission|
             return false unless permission.is_a?(String)
+            # Permission must include ':' (resource:method format)
             return false unless permission.include?(':')
           end
         end
@@ -429,16 +428,16 @@ module RackJwtAegis
 
       true
     rescue StandardError => e
-      warn "RbacManager: Cache format validation error: #{e.message}" if @config.debug_mode?
+      debug_log("RbacManager: Cache format validation error: #{e.message}", :warn)
       false
     end
 
     # Log debug message if debug mode is enabled
-    def debug_log(message)
+    def debug_log(message, level = :info)
       return unless @config.debug_mode?
 
       timestamp = Time.now.strftime('%Y-%m-%d %H:%M:%S.%L')
-      puts "[#{timestamp}] RbacManager: #{message}"
+      send(level, "[#{timestamp}] RbacManager: #{message}")
     end
   end
 end

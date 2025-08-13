@@ -14,7 +14,9 @@ JWT authentication middleware for hierarchical multi-tenant Rack applications wi
 - 2-level multi-tenant support (Example: Company-Group → Company, Organization → Department, etc.)
 - Subdomain-based tenant isolation for top-level tenants
 - URL pathname slug access control for sub-level tenants
+- **RBAC (Role-Based Access Control)** with flexible role extraction from JWT payloads
 - Configurable path exclusions for public endpoints
+- **Flexible payload mapping** for custom JWT claim names
 - Custom payload validation
 - Debug mode for development
 
@@ -175,14 +177,8 @@ RackJwtAegis::Middleware.new(app, {
     user_id: :sub,                    # Map 'sub' claim to user_id
     tenant_id: :company_group_id,    # Map 'company_group_id' claim
     subdomain: :company_group_domain_name,    # Map 'company_group_domain_name' claim
-    pathname_slugs: :accessible_company_slugs  # Map array of accessible companies
-  },
-
-  # Custom Tenant Extraction
-  tenant_strategy: :custom,
-  tenant_extractor: ->(request) {
-    # Extract tenant from custom header or logic
-    request.get_header('HTTP_X_TENANT_ID')
+    pathname_slugs: :accessible_company_slugs, # Map array of accessible companies
+    role_ids: :user_roles            # Map 'user_roles' claim for RBAC authorization
   }
 })
 ```
@@ -285,13 +281,77 @@ The middleware expects JWT payloads with the following structure:
   "tenant_id": 67890,
   "subdomain": "acme-group-of-companies", # the subdomain part of the host of the request url, e.g. `http://acme-group-of-companies.example.com`
   "pathname_slugs": ["an-acme-company-subsidiary", "another-acme-company-the-user-has-access"], # the user has access to these kind of request urls: https://acme-group-of-companies.example.com/api/v1/an-acme-company-subsidiary/* or https://acme-group-of-companies.example.com/api/v1/another-acme-company-the-user-has-access/
-  "roles": ["admin", "user"],
+  "role_ids": ["123", "456"], # Role IDs for RBAC authorization (can also be integers)
+  "roles": ["admin", "user"], # Legacy role names (kept for backward compatibility)
   "exp": 1640995200,
   "iat": 1640991600
 }
 ```
 
 You can customize the payload mapping using the `payload_mapping` configuration option.
+
+### RBAC Role Extraction
+
+When RBAC is enabled, the middleware extracts user roles from the JWT payload for authorization. The default payload mapping includes:
+
+```ruby
+payload_mapping: {
+  user_id: :user_id,
+  tenant_id: :tenant_id, 
+  subdomain: :subdomain,
+  pathname_slugs: :pathname_slugs,
+  role_ids: :role_ids    # Default field for user roles
+}
+```
+
+#### Role Field Resolution
+
+The middleware looks for roles in the following priority order:
+
+1. **Configured Field**: Uses the `role_ids` mapping (e.g., if mapped to `:user_roles`, looks for `user_roles` field)
+2. **Fallback Fields**: If the mapped field is not found, tries these common alternatives:
+   - `roles` - Array of role identifiers
+   - `role` - Single role identifier  
+   - `user_roles` - Array of user role identifiers
+   - `role_ids` - Array of role IDs (numeric or string)
+
+#### Custom Role Field Mapping
+
+You can customize the role field using payload mapping:
+
+```ruby
+# Use a custom field name for roles
+payload_mapping: {
+  role_ids: :user_permissions  # Look for roles in 'user_permissions' field
+}
+
+# JWT payload would contain:
+{
+  "user_id": 123,
+  "user_permissions": ["admin", "manager"],
+  ...
+}
+```
+
+#### Role Format Support
+
+The middleware supports flexible role formats:
+
+```ruby
+# Array of strings (recommended)
+"role_ids": ["123", "456", "admin"]
+
+# Array of integers  
+"role_ids": [123, 456]
+
+# Single string
+"role_ids": "admin"
+
+# Single integer
+"role_ids": 123
+```
+
+All role values are normalized to strings internally for consistent matching against RBAC cache permissions.
 
 ## Security Features
 
@@ -410,7 +470,8 @@ When RBAC is enabled, the middleware expects permissions to be stored in the cac
 
 2. **RBAC Permissions Validation**: Full permission evaluation
 
-   - Extract user roles from JWT payload (`roles`, `role`, `user_roles`, or `role_ids` field)
+   - Extract user roles from JWT payload using configurable field mapping (default: `role_ids`)
+   - Fallback to common fields: `roles`, `role`, `user_roles`, or `role_ids` if mapped field not found
    - Load RBAC permissions collection and validate format
    - For each user role, check if any permission matches:
      - Extract resource path from request URL (removes subdomain/pathname slug)
@@ -491,8 +552,8 @@ To install this gem onto your local machine, run `bundle exec rake install`.
 
 This project maintains high test coverage:
 
-- **Line Coverage**: 97.8% (668/683 lines)
-- **Branch Coverage**: 86.62% (259/299 branches)
+- **Line Coverage**: 97.81% (670/685 lines)
+- **Branch Coverage**: 87.13% (264/303 branches)
 
 Run tests with coverage: `bundle exec rake test`
 

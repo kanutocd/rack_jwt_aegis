@@ -65,7 +65,7 @@ module RackJwtAegis
         token = extract_jwt_token(request)
         payload = @jwt_validator.validate(token)
 
-        debug_log("JWT validation successful for user: #{payload[@config.payload_key(:user_id)]}")
+        debug_log("JWT validation successful for user: #{payload[@config.payload_key(:user_id).to_s]}")
 
         # Step 3: Multi-tenant validation (if enabled)
         if multi_tenant_enabled?
@@ -159,8 +159,12 @@ module RackJwtAegis
     # @param payload [Hash] the JWT payload
     # @return [Array] array of user role IDs
     def extract_user_roles(payload)
-      # Try multiple common role field names
-      roles = payload['roles'] || payload['role'] || payload['user_roles'] || payload['role_ids']
+      # Use configured payload mapping for role_ids, with fallback to common field names
+      role_key = @config.payload_key(:role_ids).to_s
+      roles = payload[role_key]
+
+      # If mapped key doesn't exist, try common fallback field names
+      roles = payload['roles'] || payload['role'] || payload['user_roles'] || payload['role_ids'] if roles.nil?
 
       case roles
       when Array
@@ -168,7 +172,8 @@ module RackJwtAegis
       when String, Integer
         [roles.to_s] # Single role as array
       else
-        debug_log("Warning: No valid roles found in JWT payload. Available fields: #{payload.keys}")
+        debug_log("Warning: No valid roles found in JWT payload. Looking for '#{role_key}' field. \
+                   Available fields: #{payload.keys}".squeeze)
         []
       end
     end
