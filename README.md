@@ -1,5 +1,11 @@
 # Rack JWT Aegis
 
+[![Gem Version](https://badge.fury.io/rb/rack_jwt_aegis.svg)](https://badge.fury.io/rb/rack_jwt_aegis)
+[![CI](https://github.com/kanutocd/rack_jwt_aegis/workflows/CI/badge.svg)](https://github.com/kanutocd/rack_jwt_aegis/actions)
+[![Coverage Status](https://codecov.io/gh/kanutocd/rack_jwt_aegis/branch/main/graph/badge.svg)](https://codecov.io/gh/kanutocd/rack_jwt_aegis)
+[![Ruby Version](https://img.shields.io/badge/ruby-%3E%3D%203.1.0-ruby.svg)](https://www.ruby-lang.org/en/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 JWT authentication middleware for hierarchical multi-tenant Rack applications with 2-level tenant support.
 
 ## Features
@@ -461,11 +467,34 @@ The middleware returns appropriate HTTP status codes:
 - **401 Unauthorized** - Missing, invalid, or expired JWT
 - **403 Forbidden** - Valid JWT but insufficient permissions/access
 
+## Documentation
+
+API documentation is available online and is automatically generated from the source code:
+
+- **📚 [Online Documentation](https://kanutocd.github.io/rack_jwt_aegis/)** - Auto-deployed from the main branch
+- **🔧 Generate Locally**: `bundle exec yard doc` and open `doc/index.html`
+
+### Documentation Features
+
+- Complete API reference for all classes and modules
+- Code examples and usage patterns
+- Architecture decision records (ADRs)
+- Integration examples for common use cases
+
 ## Development
 
 After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake test` to run the tests. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
 
 To install this gem onto your local machine, run `bundle exec rake install`.
+
+### Test Coverage
+
+This project maintains high test coverage:
+
+- **Line Coverage**: 97.8% (668/683 lines)
+- **Branch Coverage**: 86.62% (259/299 branches)
+
+Run tests with coverage: `bundle exec rake test`
 
 ## Contributing
 
