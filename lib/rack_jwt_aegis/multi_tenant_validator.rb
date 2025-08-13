@@ -35,7 +35,7 @@ module RackJwtAegis
     def validate(request, payload)
       validate_subdomain(request, payload) if @config.validate_subdomain?
       validate_pathname_slug(request, payload) if @config.validate_pathname_slug?
-      validate_company_header(request, payload) if @config.tenant_id_header_name
+      validate_tenant_id_header(request, payload) if @config.tenant_id_header_name
     end
 
     private
@@ -90,7 +90,7 @@ module RackJwtAegis
     end
 
     # Company Group header validation (additional security layer)
-    def validate_company_header(request, payload)
+    def validate_tenant_id_header(request, payload)
       header_name = "HTTP_#{@config.tenant_id_header_name.upcase.tr('-', '_')}"
       header_value = request.get_header(header_name)
 

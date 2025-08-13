@@ -182,7 +182,7 @@ class MultiTenantValidatorTest < Minitest::Test
     assert_match(/\["acme-widgets", "acme-services"\]/, error.message)
   end
 
-  def test_validate_company_header_success
+  def test_validate_tenant_id_header_success
     config = RackJwtAegis::Configuration.new(basic_config.merge(tenant_id_header_name: 'X-Tenant-Id'))
     validator = RackJwtAegis::MultiTenantValidator.new(config)
 
@@ -193,7 +193,7 @@ class MultiTenantValidatorTest < Minitest::Test
     validator.validate(request, payload)
   end
 
-  def test_validate_company_header_string_to_int_match
+  def test_validate_tenant_id_header_string_to_int_match
     config = RackJwtAegis::Configuration.new(basic_config.merge(tenant_id_header_name: 'X-Tenant-Id'))
     validator = RackJwtAegis::MultiTenantValidator.new(config)
 
@@ -204,7 +204,7 @@ class MultiTenantValidatorTest < Minitest::Test
     validator.validate(request, payload)
   end
 
-  def test_validate_company_header_no_header
+  def test_validate_tenant_id_header_no_header
     config = RackJwtAegis::Configuration.new(basic_config.merge(tenant_id_header_name: 'X-Tenant-Id'))
     validator = RackJwtAegis::MultiTenantValidator.new(config)
 
@@ -215,7 +215,7 @@ class MultiTenantValidatorTest < Minitest::Test
     validator.validate(request, payload)
   end
 
-  def test_validate_company_header_missing_jwt_tenant_id
+  def test_validate_tenant_id_header_missing_jwt_tenant_id
     config = RackJwtAegis::Configuration.new(basic_config.merge(tenant_id_header_name: 'X-Tenant-Id'))
     validator = RackJwtAegis::MultiTenantValidator.new(config)
 
@@ -228,7 +228,7 @@ class MultiTenantValidatorTest < Minitest::Test
     assert_equal 'JWT payload missing tenant_id for header validation', error.message
   end
 
-  def test_validate_company_header_mismatch
+  def test_validate_tenant_id_header_mismatch
     config = RackJwtAegis::Configuration.new(basic_config.merge(tenant_id_header_name: 'X-Tenant-Id'))
     validator = RackJwtAegis::MultiTenantValidator.new(config)
 
