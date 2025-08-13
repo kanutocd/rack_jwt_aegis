@@ -20,4 +20,9 @@ group :development do
   gem 'simplecov', '~> 0.22.0'
   gem 'vcr', '~> 6.3'
   gem 'yard', '~> 0.9.37'
+
+  # Cache adapters for testing
+  gem 'dalli', '~> 3.0'
+  gem 'redis', '~> 5.0'
+  # NOTE: solid_cache requires Rails, so it's tested in Rails integration environments
 end
