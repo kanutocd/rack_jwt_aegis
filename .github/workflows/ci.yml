@@ -30,7 +30,7 @@ jobs:
         if: matrix.ruby-version == '3.4'
         uses: codecov/codecov-action@v5
         with:
-          file: ./coverage/coverage.xml
+          files: ./coverage/coverage.xml
           flags: unittests
           name: codecov-umbrella
           fail_ci_if_error: false
