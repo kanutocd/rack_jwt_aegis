@@ -75,6 +75,7 @@ class ConfigurationTest < Minitest::Test
       tenant_id: :tenant_id,
       subdomain: :subdomain,
       pathname_slugs: :pathname_slugs,
+      role_ids: :role_ids,
     }
 
     assert_equal expected_payload_mapping, config.payload_mapping
@@ -136,6 +137,110 @@ class ConfigurationTest < Minitest::Test
       )
     end
     assert_match(/Unsupported JWT algorithm: INVALID/, error.message)
+  end
+
+  # Payload Mapping Validation Tests
+  def test_payload_mapping_nil_is_allowed
+    config = RackJwtAegis::Configuration.new(
+      jwt_secret: 'test-secret',
+      payload_mapping: nil,
+    )
+
+    assert_nil config.payload_mapping
+    assert_equal :user_id, config.payload_key(:user_id)
+  end
+
+  def test_invalid_payload_mapping_not_hash
+    error = assert_raises(RackJwtAegis::ConfigurationError) do
+      RackJwtAegis::Configuration.new(
+        jwt_secret: 'test-secret',
+        payload_mapping: 'not_a_hash',
+      )
+    end
+    assert_match(/payload_mapping must be a Hash/, error.message)
+  end
+
+  def test_payload_mapping_partial_override_allowed
+    config = RackJwtAegis::Configuration.new(
+      jwt_secret: 'test-secret',
+      payload_mapping: { tenant_id: :company_id }, # Partial override
+    )
+
+    # Should allow partial mapping - missing keys fallback to standard keys
+    expected_mapping = { tenant_id: :company_id }
+
+    assert_equal expected_mapping, config.payload_mapping
+
+    # payload_key should handle missing keys gracefully
+    assert_equal :user_id, config.payload_key(:user_id) # Not in mapping, returns standard key
+    assert_equal :company_id, config.payload_key(:tenant_id) # In mapping, returns mapped key
+  end
+
+  def test_payload_mapping_invalid_values
+    error = assert_raises(RackJwtAegis::ConfigurationError) do
+      RackJwtAegis::Configuration.new(
+        jwt_secret: 'test-secret',
+        payload_mapping: {
+          user_id: :user_id,
+          tenant_id: 'not_a_symbol', # Should be a symbol
+        },
+      )
+    end
+    assert_match(/payload_mapping values must be symbols/, error.message)
+  end
+
+  def test_payload_mapping_rbac_without_role_ids_uses_fallback
+    config = RackJwtAegis::Configuration.new(
+      jwt_secret: 'test-secret',
+      rbac_enabled: true,
+      rbac_cache_store: :memory,
+      payload_mapping: { user_id: :sub }, # No role_ids mapping
+    )
+
+    # Should allow RBAC without explicit role_ids mapping
+    assert_predicate config, :rbac_enabled?
+
+    # payload_key should fallback to standard key for role_ids
+    assert_equal :role_ids, config.payload_key(:role_ids) # Not in mapping, returns standard key
+    assert_equal :sub, config.payload_key(:user_id) # In mapping, returns mapped key
+  end
+
+  def test_valid_payload_mapping
+    config = RackJwtAegis::Configuration.new(
+      jwt_secret: 'test-secret',
+      payload_mapping: {
+        user_id: :sub,
+        tenant_id: :company_id,
+        role_ids: :user_roles,
+      },
+    )
+
+    expected_mapping = {
+      user_id: :sub,
+      tenant_id: :company_id,
+      role_ids: :user_roles,
+    }
+
+    assert_equal expected_mapping, config.payload_mapping
+  end
+
+  def test_valid_payload_mapping_with_rbac
+    config = RackJwtAegis::Configuration.new(
+      jwt_secret: 'test-secret',
+      rbac_enabled: true,
+      rbac_cache_store: :memory,
+      payload_mapping: {
+        user_id: :sub,
+        role_ids: :user_roles,
+      },
+    )
+
+    expected_mapping = {
+      user_id: :sub,
+      role_ids: :user_roles,
+    }
+
+    assert_equal expected_mapping, config.payload_mapping
   end
 
   # Cache Settings Validation Tests

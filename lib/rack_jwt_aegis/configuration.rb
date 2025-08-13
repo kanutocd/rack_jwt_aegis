@@ -273,6 +273,7 @@ module RackJwtAegis
         tenant_id: :tenant_id,
         subdomain: :subdomain,
         pathname_slugs: :pathname_slugs,
+        role_ids: :role_ids,
       }
       @unauthorized_response = { error: 'Authentication required' }
       @forbidden_response = { error: 'Access denied' }
@@ -280,6 +281,7 @@ module RackJwtAegis
 
     def validate!
       validate_jwt_settings!
+      validate_payload_mapping!
       validate_cache_settings!
       validate_multi_tenant_settings!
     end
@@ -291,6 +293,24 @@ module RackJwtAegis
       return if valid_algorithms.include?(jwt_algorithm)
 
       raise ConfigurationError, "Unsupported JWT algorithm: #{jwt_algorithm}"
+    end
+
+    def validate_payload_mapping!
+      # Allow nil payload_mapping (will use defaults)
+      return if payload_mapping.nil?
+
+      raise ConfigurationError, 'payload_mapping must be a Hash' unless payload_mapping.is_a?(Hash)
+
+      # Validate all values are symbols
+      invalid_values = payload_mapping.reject { |_key, value| value.is_a?(Symbol) }
+      return if invalid_values.empty?
+
+      raise ConfigurationError, "payload_mapping values must be symbols, invalid: #{invalid_values.inspect}"
+
+      # NOTE: We don't validate required keys because users may provide
+      # partial mappings that are intended to override defaults. The payload_key method
+      # handles missing keys by returning the standard key as fallback.
+      # This includes RBAC keys - if :role_ids is not mapped, it falls back to 'role_ids'.
     end
 
     def validate_cache_settings!
