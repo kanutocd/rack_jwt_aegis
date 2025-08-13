@@ -51,7 +51,7 @@ class JwtValidatorComprehensiveTest < Minitest::Test
     error = assert_raises(RackJwtAegis::AuthenticationError) do
       @validator.validate(wrong_secret_token)
     end
-    assert_match(/Signature verification failed/, error.message)
+    assert_equal 'JWT signature verification failed', error.message
   end
 
   def test_validate_malformed_token
@@ -291,6 +291,16 @@ class JwtValidatorComprehensiveTest < Minitest::Test
       @validator.validate('any_token')
     end
     assert_match(/JWT validation error: Unexpected error/, error.message)
+  end
+
+  def test_jwt_verification_error_specifically
+    # Mock JWT.decode to raise JWT::VerificationError directly
+    JWT.stubs(:decode).raises(JWT::VerificationError.new('signature verification failed'))
+
+    error = assert_raises(RackJwtAegis::AuthenticationError) do
+      @validator.validate('any_token')
+    end
+    assert_equal 'JWT signature verification failed', error.message
   end
 
   def test_validate_with_nil_claims_when_not_required

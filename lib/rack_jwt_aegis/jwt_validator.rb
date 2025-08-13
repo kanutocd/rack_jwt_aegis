@@ -65,10 +65,10 @@ module RackJwtAegis
       raise AuthenticationError, 'JWT token not yet valid'
     rescue JWT::InvalidIatError
       raise AuthenticationError, 'JWT token issued in the future'
-    rescue JWT::DecodeError => e
-      raise AuthenticationError, "Invalid JWT token: #{e.message}"
     rescue JWT::VerificationError
       raise AuthenticationError, 'JWT signature verification failed'
+    rescue JWT::DecodeError => e
+      raise AuthenticationError, "Invalid JWT token: #{e.message}"
     rescue StandardError => e
       raise AuthenticationError, "JWT validation error: #{e.message}"
     end

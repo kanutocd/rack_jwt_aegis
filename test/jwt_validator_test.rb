@@ -32,7 +32,7 @@ class JwtValidatorTest < Minitest::Test
     error = assert_raises(RackJwtAegis::AuthenticationError) do
       @validator.validate(token)
     end
-    assert_match(/verification failed/, error.message)
+    assert_equal 'JWT signature verification failed', error.message
   end
 
   def test_validates_payload_structure
