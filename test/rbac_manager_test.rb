@@ -152,7 +152,7 @@ class RbacManagerTest < Minitest::Test
       jwt_secret: 'secret',
       rbac_cache_store: :memory,
       permission_cache_store: :memory,
-      cache_write_enabled: false
+      cache_write_enabled: false,
     )
     manager = RackJwtAegis::RbacManager.new(config)
 
@@ -175,7 +175,7 @@ class RbacManagerTest < Minitest::Test
     # Verify permission was not cached since cache_write_enabled is false
     permission_cache = manager.instance_variable_get(:@permission_cache)
     user_permissions = permission_cache.read('user_permissions')
-    
+
     assert_nil user_permissions
   end
 
@@ -196,49 +196,49 @@ class RbacManagerTest < Minitest::Test
     # Test invalid permissions structure
     refute manager.send(:validate_rbac_cache_format, {
       'last_update' => 123,
-      'permissions' => 'not-an-array'
+      'permissions' => 'not-an-array',
     })
 
     # Test empty permissions array is valid
     assert manager.send(:validate_rbac_cache_format, {
       'last_update' => 123,
-      'permissions' => []
+      'permissions' => [],
     })
 
     # Test invalid permission entry (not a hash)
     refute manager.send(:validate_rbac_cache_format, {
       'last_update' => 123,
-      'permissions' => ['not-a-hash']
+      'permissions' => ['not-a-hash'],
     })
 
     # Test empty permission entry (should be invalid)
     refute manager.send(:validate_rbac_cache_format, {
       'last_update' => 123,
-      'permissions' => [{}]
+      'permissions' => [{}],
     })
 
     # Test invalid permission values (not array)
     refute manager.send(:validate_rbac_cache_format, {
       'last_update' => 123,
-      'permissions' => [{ '123' => 'not-an-array' }]
+      'permissions' => [{ '123' => 'not-an-array' }],
     })
 
     # Test invalid permission format (missing colon)
     refute manager.send(:validate_rbac_cache_format, {
       'last_update' => 123,
-      'permissions' => [{ '123' => ['invalid-permission-format'] }]
+      'permissions' => [{ '123' => ['invalid-permission-format'] }],
     })
 
     # Test invalid permission format (not string)
     refute manager.send(:validate_rbac_cache_format, {
       'last_update' => 123,
-      'permissions' => [{ '123' => [123] }]
+      'permissions' => [{ '123' => [123] }],
     })
 
     # Test valid format with symbol keys
     assert manager.send(:validate_rbac_cache_format, {
       last_update: 123,
-      permissions: [{ '123' => ['users:get'] }]
+      permissions: [{ '123' => ['users:get'] }],
     })
   end
 
@@ -250,7 +250,7 @@ class RbacManagerTest < Minitest::Test
 
     permission_cache = @manager.instance_variable_get(:@permission_cache)
     user_permissions = permission_cache.read('user_permissions')
-    
+
     # Should be empty or nil since false permissions are not cached
     assert user_permissions.nil? || user_permissions.empty?
 
@@ -258,23 +258,24 @@ class RbacManagerTest < Minitest::Test
     @manager.send(:cache_permission_result, permission_key, true)
 
     user_permissions = permission_cache.read('user_permissions')
+
     assert_kind_of Hash, user_permissions
     assert_kind_of Integer, user_permissions[permission_key]
   end
 
   def test_remove_stale_permission_edge_cases
     permission_cache = @manager.instance_variable_get(:@permission_cache)
-    
+
     # Test removing from non-existent cache
     @manager.send(:remove_stale_permission, 'nonexistent:key', 'test reason')
-    
+
     # Test removing last permission clears entire cache
     permission_key = 'test:key'
     user_permissions = { permission_key => Time.now.to_i }
     permission_cache.write('user_permissions', user_permissions)
-    
+
     @manager.send(:remove_stale_permission, permission_key, 'last permission')
-    
+
     # Cache should be deleted entirely
     assert_nil permission_cache.read('user_permissions')
   end
@@ -296,37 +297,38 @@ class RbacManagerTest < Minitest::Test
     assert manager.send(:permission_matches?, 'users:*', 'users', 'post')
     assert manager.send(:permission_matches?, 'users:*', 'users', 'delete')
 
-    # Test case insensitive method matching  
+    # Test case insensitive method matching
     assert manager.send(:permission_matches?, 'users:GET', 'users', 'get')
-    assert manager.send(:permission_matches?, 'users:get', 'users', 'get')  # Fixed - both should be lowercase for request_method
+    assert manager.send(:permission_matches?, 'users:get', 'users', 'get') # Fixed - both should be lowercase for method
   end
 
   def test_regex_permission_error_handling
     config_with_debug = RackJwtAegis::Configuration.new(basic_config.merge(
-      cache_store: :memory,
-      cache_write_enabled: true,
-      debug_mode: true
-    ))
+                                                          cache_store: :memory,
+                                                          cache_write_enabled: true,
+                                                          debug_mode: true,
+                                                        ))
     manager = RackJwtAegis::RbacManager.new(config_with_debug)
 
     # Test invalid regex pattern that will definitely cause a RegexpError
-    invalid_regex_permission = '%r{*+}'  # Invalid regex quantifier
-    
+    invalid_regex_permission = '%r{*+}' # Invalid regex quantifier
+
     # Capture the warnings using stderr since that's where warn goes
     warning_output = capture_warnings do
       result = manager.send(:path_matches?, invalid_regex_permission, 'test/path')
+
       refute result, 'Invalid regex should not match'
     end
-    
+
     assert_match(/Invalid regex pattern/, warning_output)
   end
 
   def test_validate_rbac_cache_format_with_exception
     config_with_debug = RackJwtAegis::Configuration.new(basic_config.merge(
-      cache_store: :memory,
-      cache_write_enabled: true,
-      debug_mode: true
-    ))
+                                                          cache_store: :memory,
+                                                          cache_write_enabled: true,
+                                                          debug_mode: true,
+                                                        ))
     manager = RackJwtAegis::RbacManager.new(config_with_debug)
 
     # Create a malformed object that will cause an exception during validation
@@ -337,6 +339,7 @@ class RbacManagerTest < Minitest::Test
     # Should capture the warning and return false
     warning_output = capture_warnings do
       result = manager.send(:validate_rbac_cache_format, malformed_data)
+
       refute result, 'Should return false when validation throws exception'
     end
 
@@ -345,14 +348,14 @@ class RbacManagerTest < Minitest::Test
 
   def test_no_user_roles_in_request_context
     config_with_debug = RackJwtAegis::Configuration.new(basic_config.merge(
-      cache_store: :memory,
-      cache_write_enabled: true,
-      debug_mode: true
-    ))
+                                                          cache_store: :memory,
+                                                          cache_write_enabled: true,
+                                                          debug_mode: true,
+                                                        ))
     manager = RackJwtAegis::RbacManager.new(config_with_debug)
 
     payload = valid_jwt_payload
-    @request.env['rack_jwt_aegis.user_roles'] = nil  # No roles
+    @request.env['rack_jwt_aegis.user_roles'] = nil # No roles
 
     # Setup RBAC data
     rbac_cache = manager.instance_variable_get(:@rbac_cache)
@@ -384,6 +387,7 @@ class RbacManagerTest < Minitest::Test
 
     # Should fallback to false when RBAC data is invalid
     result = @manager.send(:check_rbac_permission, 123, @request)
+
     refute result
   end
 
@@ -397,9 +401,10 @@ class RbacManagerTest < Minitest::Test
 
     permission_cache = @manager.instance_variable_get(:@permission_cache)
     user_permissions = permission_cache.read('user_permissions')
-    
+
     # Should cache with 'localhost' as default host
     expected_key = '123:localhost/test/path:get'
+
     assert_kind_of Hash, user_permissions
     assert user_permissions.key?(expected_key)
   end
@@ -410,21 +415,25 @@ class RbacManagerTest < Minitest::Test
     # Test with pathname slug pattern configured
     request_with_slug = rack_request(method: 'GET', path: '/api/v1/company-name/users/123')
     extracted = manager.send(:extract_api_path_from_request, request_with_slug)
+
     assert_equal 'users/123', extracted
 
     # Test path that doesn't match slug pattern
     request_no_slug = rack_request(method: 'GET', path: '/api/v2/direct/users')
     extracted = manager.send(:extract_api_path_from_request, request_no_slug)
+
     assert_equal 'direct/users', extracted
 
     # Test path with just /api/ prefix
     request_api = rack_request(method: 'GET', path: '/api/users')
     extracted = manager.send(:extract_api_path_from_request, request_api)
+
     assert_equal 'users', extracted
 
     # Test root path
     request_root = rack_request(method: 'GET', path: '/')
     extracted = manager.send(:extract_api_path_from_request, request_root)
+
     assert_equal '', extracted
   end
 
@@ -434,6 +443,7 @@ class RbacManagerTest < Minitest::Test
     @manager.instance_variable_set(:@rbac_cache, nil)
 
     result = @manager.send(:get_rbac_last_update_timestamp)
+
     assert_nil result
 
     # Restore the original cache
@@ -444,21 +454,23 @@ class RbacManagerTest < Minitest::Test
     rbac_cache.write('permissions', { 'permissions' => [] })
 
     result = @manager.send(:get_rbac_last_update_timestamp)
+
     assert_nil result
 
     # Test with non-hash data
     rbac_cache.write('permissions', 'not-a-hash')
 
     result = @manager.send(:get_rbac_last_update_timestamp)
+
     assert_nil result
   end
 
   def test_remove_stale_permission_with_cache_error
     config_with_debug = RackJwtAegis::Configuration.new(basic_config.merge(
-      cache_store: :memory,
-      cache_write_enabled: true,
-      debug_mode: true
-    ))
+                                                          cache_store: :memory,
+                                                          cache_write_enabled: true,
+                                                          debug_mode: true,
+                                                        ))
     manager = RackJwtAegis::RbacManager.new(config_with_debug)
 
     # Mock permission cache to throw error on read
@@ -474,51 +486,53 @@ class RbacManagerTest < Minitest::Test
   end
 
   def test_check_rbac_format_with_role_id_as_integer
-    @request.env['rack_jwt_aegis.user_roles'] = [123]  # Integer role ID
+    @request.env['rack_jwt_aegis.user_roles'] = [123] # Integer role ID
 
     # Setup RBAC data with integer role keys
     rbac_data = {
       'last_update' => Time.now.to_i,
       'permissions' => [
-        { 123 => ['users:get'] },  # Integer key instead of string
+        { 123 => ['users:get'] }, # Integer key instead of string
       ],
     }
 
     result = @manager.send(:check_rbac_format, 123, @request, rbac_data)
+
     assert result
   end
 
   def test_extract_api_path_with_pattern_no_match
     # Test when pattern doesn't match
     request_no_match = rack_request(method: 'GET', path: '/different/path/structure')
-    
+
     # Should fall back to removing /api/v1/ prefix
     extracted = @manager.send(:extract_api_path_from_request, request_no_match)
+
     assert_equal 'different/path/structure', extracted
   end
 
   def test_extract_api_path_with_pattern_no_captures
     # Test when pattern matches but has no captures
     config_no_captures = RackJwtAegis::Configuration.new(basic_config.merge(
-      cache_store: :memory,
-      cache_write_enabled: true,
-      pathname_slug_pattern: /\/api\/v1\//  # No capture groups
-    ))
+                                                           cache_store: :memory,
+                                                           cache_write_enabled: true,
+                                                           pathname_slug_pattern: %r{/api/v1/}, # No capture groups
+                                                         ))
     manager = RackJwtAegis::RbacManager.new(config_no_captures)
-    
+
     request = rack_request(method: 'GET', path: '/api/v1/users')
     extracted = manager.send(:extract_api_path_from_request, request)
-    
+
     # Should fall back to removing prefixes
     assert_equal 'users', extracted
   end
 
   def test_nuke_user_permissions_cache_with_cache_error
     config_with_debug = RackJwtAegis::Configuration.new(basic_config.merge(
-      cache_store: :memory,
-      cache_write_enabled: true,
-      debug_mode: true
-    ))
+                                                          cache_store: :memory,
+                                                          cache_write_enabled: true,
+                                                          debug_mode: true,
+                                                        ))
     manager = RackJwtAegis::RbacManager.new(config_with_debug)
 
     # Mock permission cache to throw error on delete
@@ -535,10 +549,10 @@ class RbacManagerTest < Minitest::Test
 
   def test_cache_permission_result_with_cache_error
     config_with_debug = RackJwtAegis::Configuration.new(basic_config.merge(
-      cache_store: :memory,
-      cache_write_enabled: true,
-      debug_mode: true
-    ))
+                                                          cache_store: :memory,
+                                                          cache_write_enabled: true,
+                                                          debug_mode: true,
+                                                        ))
     manager = RackJwtAegis::RbacManager.new(config_with_debug)
 
     # Mock permission cache to throw error on write
@@ -559,9 +573,9 @@ class RbacManagerTest < Minitest::Test
     original_stderr = $stderr
     captured_output = StringIO.new
     $stderr = captured_output
-    
+
     yield
-    
+
     captured_output.string
   ensure
     $stderr = original_stderr
@@ -571,9 +585,9 @@ class RbacManagerTest < Minitest::Test
     original_stdout = $stdout
     captured_output = StringIO.new
     $stdout = captured_output
-    
+
     yield
-    
+
     captured_output.string
   ensure
     $stdout = original_stdout

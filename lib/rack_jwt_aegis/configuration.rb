@@ -220,7 +220,6 @@ module RackJwtAegis
     # @param path [String] the request path to check
     # @return [Boolean] true if the path should be skipped
     def skip_path?(path)
-      puts "--- path: #{path.inspect}"
       return false if skip_paths.nil? || skip_paths.empty?
 
       skip_paths.any? do |skip_path|

@@ -201,8 +201,6 @@ module RackJwtAegis
       false
     end
 
-
-
     # Get RBAC permissions collection last_update timestamp
     def get_rbac_last_update_timestamp
       return nil unless @rbac_cache
@@ -212,6 +210,7 @@ module RackJwtAegis
         if rbac_data.is_a?(Hash) && (rbac_data['last_update'] || rbac_data[:last_update])
           return rbac_data['last_update'] || rbac_data[:last_update]
         end
+
         nil
       rescue CacheError => e
         warn "RbacManager RBAC last-update read error: #{e.message}" if @config.debug_mode?
@@ -255,10 +254,6 @@ module RackJwtAegis
         warn "RbacManager cache nuke error: #{e.message}" if @config.debug_mode?
       end
     end
-
-
-
-
 
     # Extract user roles from request context (stored by middleware)
     def extract_user_roles_from_request(request)

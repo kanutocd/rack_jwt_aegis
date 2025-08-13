@@ -336,7 +336,7 @@ class ConfigurationComprehensiveTest < Minitest::Test
         rbac_enabled: true,
         cache_store: :memory,
         cache_write_enabled: false,
-        rbac_cache_store: nil # This should trigger line 303
+        rbac_cache_store: nil, # This should trigger line 303
       )
     end
     assert_equal 'rbac_cache_store is required when cache_write_enabled is false', error.message
@@ -350,7 +350,7 @@ class ConfigurationComprehensiveTest < Minitest::Test
       cache_store: :redis,
       cache_write_enabled: false,
       rbac_cache_store: :memory,
-      permission_cache_store: nil # This should trigger lines 307-308
+      permission_cache_store: nil, # This should trigger lines 307-308
     )
 
     # permission_cache_store should default to :memory when nil in zero trust mode

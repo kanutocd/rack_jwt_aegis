@@ -379,11 +379,12 @@ class MiddlewareComprehensiveTest < Minitest::Test
     middleware = RackJwtAegis::Middleware.new(@app, config)
 
     payload = { 'user_id' => 123, 'some_other_field' => 'value' }
-    
+
     # Capture debug log output
     output = capture_io do
       roles = middleware.send(:extract_user_roles, payload)
-      assert_equal [], roles
+
+      assert_empty roles
     end
 
     assert_match(/Warning: No valid roles found in JWT payload/, output.first)
@@ -399,17 +400,18 @@ class MiddlewareComprehensiveTest < Minitest::Test
     middleware = RackJwtAegis::Middleware.new(@app, config)
 
     payload = { 'roles' => { 'invalid' => 'hash' } }
-    
+
     # Capture debug log output
     output = capture_io do
       roles = middleware.send(:extract_user_roles, payload)
-      assert_equal [], roles
+
+      assert_empty roles
     end
 
     assert_match(/Warning: No valid roles found in JWT payload/, output.first)
   end
 
-  def test_extract_jwt_token_with_only_whitespace_after_bearer  
+  def test_extract_jwt_token_with_only_whitespace_after_bearer
     config = { jwt_secret: 'test-secret' }
     middleware = RackJwtAegis::Middleware.new(@app, config)
 
@@ -418,7 +420,7 @@ class MiddlewareComprehensiveTest < Minitest::Test
     # Let me use newlines or tabs which might be treated as empty when trimmed
     env = Rack::MockRequest.env_for(
       'http://example.com/api/users',
-      'HTTP_AUTHORIZATION' => "Bearer \t\n ",  # Tab and newline
+      'HTTP_AUTHORIZATION' => "Bearer \t\n ", # Tab and newline
     )
 
     status, _headers, body = middleware.call(env)
@@ -438,7 +440,7 @@ class MiddlewareComprehensiveTest < Minitest::Test
     # Test edge case: "Bearer" without any space or token
     env = Rack::MockRequest.env_for(
       'http://example.com/api/users',
-      'HTTP_AUTHORIZATION' => 'Bearer'
+      'HTTP_AUTHORIZATION' => 'Bearer',
     )
 
     status, _headers, body = middleware.call(env)
@@ -457,7 +459,7 @@ class MiddlewareComprehensiveTest < Minitest::Test
     # Test with empty string authorization header
     env = Rack::MockRequest.env_for(
       'http://example.com/api/users',
-      'HTTP_AUTHORIZATION' => ''
+      'HTTP_AUTHORIZATION' => '',
     )
 
     status, _headers, body = middleware.call(env)
@@ -485,7 +487,7 @@ class MiddlewareComprehensiveTest < Minitest::Test
     payload = { 'user_id' => 123, 'roles' => ['admin', 'user'] }
     env = Rack::MockRequest.env_for(
       'http://example.com/api/users',
-      'HTTP_AUTHORIZATION' => "Bearer #{generate_jwt_token(payload)}"
+      'HTTP_AUTHORIZATION' => "Bearer #{generate_jwt_token(payload)}",
     )
 
     status, _headers, _body = middleware.call(env)
