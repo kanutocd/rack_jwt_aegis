@@ -297,7 +297,7 @@ When RBAC is enabled, the middleware extracts user roles from the JWT payload fo
 ```ruby
 payload_mapping: {
   user_id: :user_id,
-  tenant_id: :tenant_id, 
+  tenant_id: :tenant_id,
   subdomain: :subdomain,
   pathname_slugs: :pathname_slugs,
   role_ids: :role_ids    # Default field for user roles
@@ -311,7 +311,7 @@ The middleware looks for roles in the following priority order:
 1. **Configured Field**: Uses the `role_ids` mapping (e.g., if mapped to `:user_roles`, looks for `user_roles` field)
 2. **Fallback Fields**: If the mapped field is not found, tries these common alternatives:
    - `roles` - Array of role identifiers
-   - `role` - Single role identifier  
+   - `role` - Single role identifier
    - `user_roles` - Array of user role identifiers
    - `role_ids` - Array of role IDs (numeric or string)
 
@@ -341,7 +341,7 @@ The middleware supports flexible role formats:
 # Array of strings (recommended)
 "role_ids": ["123", "456", "admin"]
 
-# Array of integers  
+# Array of integers
 "role_ids": [123, 456]
 
 # Single string
