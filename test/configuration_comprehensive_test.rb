@@ -11,6 +11,7 @@ class ConfigurationComprehensiveTest < Minitest::Test
     assert_equal 'X-Tenant-Id', config.tenant_id_header_name
     refute_predicate config, :validate_subdomain?
     refute_predicate config, :validate_pathname_slug?
+    refute_predicate config, :validate_tenant_id?
     refute_predicate config, :rbac_enabled?
     refute_predicate config, :debug_mode?
     assert_empty config.skip_paths
@@ -24,6 +25,7 @@ class ConfigurationComprehensiveTest < Minitest::Test
       tenant_id_header_name: 'X-Custom-Tenant',
       validate_subdomain: true,
       validate_pathname_slug: true,
+      validate_tenant_id: true,
       rbac_enabled: true,
       rbac_cache_store: :memory,
       debug_mode: true,
@@ -38,6 +40,7 @@ class ConfigurationComprehensiveTest < Minitest::Test
     assert_equal 'X-Custom-Tenant', config.tenant_id_header_name
     assert_predicate config, :validate_subdomain?
     assert_predicate config, :validate_pathname_slug?
+    assert_predicate config, :validate_tenant_id?
     assert_predicate config, :rbac_enabled?
     assert_predicate config, :debug_mode?
     assert_equal ['/health', '/status'], config.skip_paths
@@ -96,6 +99,18 @@ class ConfigurationComprehensiveTest < Minitest::Test
       )
     end
     assert_equal 'payload_mapping must include :pathname_slugs when validate_pathname_slug is true', error.message
+  end
+
+  def test_validate_pathname_slug_without_pathname_slugs_mapping_and_without_pathname_slug_pattern
+    error = assert_raises(RackJwtAegis::ConfigurationError) do
+      RackJwtAegis::Configuration.new(
+        jwt_secret: 'test-secret',
+        validate_pathname_slug: true,
+        pathname_slug_pattern: nil,
+        payload_mapping: { user_id: :sub },
+      )
+    end
+    assert_match(/payload_mapping must include :pathname_slugs and pathname_slug_pattern is required/, error.message)
   end
 
   def test_config_boolean_true_values

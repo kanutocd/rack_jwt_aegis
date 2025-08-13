@@ -82,6 +82,7 @@ Rack JWT Aegis includes a command-line tool for generating secure JWT secrets:
   # config/application.rb
   config.middleware.insert_before 0, RackJwtAegis::Middleware, {
     jwt_secret: ENV['JWT_SECRET'],
+    validate_tenant_id: true,
     tenant_id_header_name: 'X-Tenant-Id',
     skip_paths: ['/api/v1/login', '/health']
   }
@@ -94,6 +95,7 @@ Rack JWT Aegis includes a command-line tool for generating secure JWT secrets:
 
   use RackJwtAegis::Middleware, {
     jwt_secret: ENV['JWT_SECRET'],
+    validate_tenant_id: true,
     tenant_id_header_name: 'X-Tenant-Id',
     skip_paths: ['/login', '/health']
   }
@@ -172,7 +174,16 @@ RackJwtAegis::Middleware.new(app, {
     payload['role'] == 'admin' || payload['permissions'].include?('read')
   },
 
-  # Flexible Payload Mapping
+  # Payload Mapping defaults:
+  # payload_mapping = {
+  #   user_id: :user_id,
+  #   tenant_id: :tenant_id,
+  #   subdomain: :subdomain,
+  #   pathname_slugs: :pathname_slugs,
+  #   role_ids: :role_ids,
+  # }
+
+  # Flexible Payload Mapping can be customized into:
   payload_mapping: {
     user_id: :sub,                    # Map 'sub' claim to user_id
     tenant_id: :company_group_id,    # Map 'company_group_id' claim
@@ -190,7 +201,7 @@ Rack JWT Aegis provides multiple strategies for multi-tenant authentication:
 ### Subdomain Validation
 
 ```ruby
-# Validates that the JWT's domain matches the request subdomain
+# Validates that the JWT's subdomain claim matches the request's host subdomain
 config.validate_subdomain = true
 ```
 
@@ -206,6 +217,7 @@ config.pathname_slug_pattern = /^\/api\/v1\/([^\/]+)\//
 
 ```ruby
 # Validates the X-Tenant-Id header against JWT payload
+config.validate_tenant_id = true
 config.tenant_id_header_name = 'X-Tenant-Id'
 ```
 

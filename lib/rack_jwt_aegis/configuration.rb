@@ -49,6 +49,10 @@ module RackJwtAegis
     # @return [Boolean] true if pathname slug validation is enabled
     attr_accessor :validate_pathname_slug
 
+    # Whether to validate tenant id from request header against the tenant id from JWT payload
+    # @return [Boolean] true if tenant id validation is enabled
+    attr_accessor :validate_tenant_id
+
     # Whether RBAC (Role-Based Access Control) is enabled
     # @return [Boolean] true if RBAC is enabled
     attr_accessor :rbac_enabled
@@ -204,6 +208,12 @@ module RackJwtAegis
       config_boolean?(validate_pathname_slug)
     end
 
+    # Check if tenant id validation is enabled
+    # @return [Boolean] true if tenant id validation is enabled
+    def validate_tenant_id?
+      config_boolean?(validate_tenant_id)
+    end
+
     # Check if debug mode is enabled
     # @return [Boolean] true if debug mode is enabled
     def debug_mode?
@@ -261,6 +271,7 @@ module RackJwtAegis
       @jwt_algorithm = 'HS256'
       @validate_subdomain = false
       @validate_pathname_slug = false
+      @validate_tenant_id = false
       @rbac_enabled = false
       @tenant_id_header_name = 'X-Tenant-Id'
       @pathname_slug_pattern = %r{^/api/v1/([^/]+)/}
@@ -287,7 +298,7 @@ module RackJwtAegis
     end
 
     def validate_jwt_settings!
-      raise ConfigurationError, 'jwt_secret is required' if jwt_secret.nil? || jwt_secret.empty?
+      raise ConfigurationError, 'jwt_secret is required' if jwt_secret.to_s.strip.empty?
 
       valid_algorithms = ['HS256', 'HS384', 'HS512', 'RS256', 'RS384', 'RS512', 'ES256', 'ES384', 'ES512']
       return if valid_algorithms.include?(jwt_algorithm)
@@ -338,17 +349,23 @@ module RackJwtAegis
     end
 
     def validate_multi_tenant_settings!
-      if validate_pathname_slug? && pathname_slug_pattern.nil?
-        raise ConfigurationError, 'pathname_slug_pattern is required when validate_pathname_slug is true'
-      end
-
       if validate_subdomain? && !payload_mapping.key?(:subdomain)
         raise ConfigurationError, 'payload_mapping must include :subdomain when validate_subdomain is true'
       end
 
-      return unless validate_pathname_slug? && !payload_mapping.key?(:pathname_slugs)
+      if validate_tenant_id?
+        error_msg = []
+        error_msg << 'payload_mapping must include :tenant_id' unless payload_mapping.key?(:tenant_id)
+        error_msg << 'tenant_id_header_name is required' if tenant_id_header_name.to_s.strip.empty?
+        raise ConfigurationError, "#{error_msg.join(' and ')} when validate_tenant_id is true" if error_msg.any?
+      end
 
-      raise ConfigurationError, 'payload_mapping must include :pathname_slugs when validate_pathname_slug is true'
+      return unless validate_pathname_slug?
+
+      error_msg = []
+      error_msg << 'payload_mapping must include :pathname_slugs' unless payload_mapping.key?(:pathname_slugs)
+      error_msg << 'pathname_slug_pattern is required' if pathname_slug_pattern.to_s.empty?
+      raise ConfigurationError, "#{error_msg.join(' and ')} when validate_pathname_slug is true" if error_msg.any?
     end
   end
 end
