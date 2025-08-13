@@ -75,7 +75,7 @@ Rack JWT Aegis includes a command-line tool for generating secure JWT secrets:
   config.middleware.insert_before 0, RackJwtAegis::Middleware, {
     jwt_secret: ENV['JWT_SECRET'],
     tenant_id_header_name: 'X-Tenant-Id',
-    skip_paths: ['/api/v1/login', '/api/v1/refresh', '/health']
+    skip_paths: ['/api/v1/login', '/health']
   }
 ```
 
@@ -123,7 +123,7 @@ RackJwtAegis::Middleware.new(app, {
   validate_pathname_slug: true,  # Default: false
 
   # Path Configuration
-  skip_paths: ['/health', '/api/v1/login', '/api/v1/refresh'],
+  skip_paths: ['/health', '/api/v1/login'],
   pathname_slug_pattern: /^\/api\/v1\/([^\/]+)\//,  # Default pattern
 
   # RBAC Configuration
@@ -131,6 +131,17 @@ RackJwtAegis::Middleware.new(app, {
   rbac_cache_store: :redis,         # Required when RBAC enabled
   rbac_cache_options: { url: ENV['REDIS_URL'] },
   user_permissions_ttl: 3600,       # Default: 1800 (30 minutes) - TTL for cached user permissions
+
+  # Cache Store Configuration (choose one approach)
+  # Option 1: Shared cache for both RBAC and permissions
+  cache_store: :memory,             # :memory, :redis, :memcached, :solid_cache
+  cache_options: { url: ENV['REDIS_URL'] },
+
+  # Option 2: Separate cache stores for RBAC and permissions
+  rbac_cache_store: :redis,         # For RBAC permissions data
+  rbac_cache_options: { url: ENV['REDIS_URL'] },
+  permission_cache_store: :memory,  # For cached user permissions
+  permission_cache_options: {},
 
   # Response Customization
   unauthorized_response: { error: 'Authentication required' },
@@ -198,6 +209,66 @@ config.tenant_id_header_name = 'X-Tenant-Id'
 
 The value from this request header entry will be used to verify the JWT's mapped `tenant_id` claim.
 
+## Request Context Access
+
+After successful JWT authentication, the middleware stores user context in the Rack environment for easy access in your application:
+
+### Basic Usage
+
+```ruby
+# In your controllers or middleware
+class UsersController < ApplicationController
+  def index
+    # Check if request is authenticated
+    return unauthorized unless RackJwtAegis::RequestContext.authenticated?(request.env)
+
+    # Get user information
+    user_id = RackJwtAegis::RequestContext.user_id(request.env)
+    tenant_id = RackJwtAegis::RequestContext.tenant_id(request.env)
+
+    # Access full JWT payload
+    payload = RackJwtAegis::RequestContext.payload(request.env)
+    roles = payload['roles']
+
+    # Your business logic here
+    users = User.where(tenant_id: tenant_id)
+    render json: users
+  end
+end
+```
+
+### Multi-Tenant Context
+
+```ruby
+# Access subdomain information
+subdomain = RackJwtAegis::RequestContext.subdomain(request.env)
+# => "acme-group-of-companies"
+
+# Check pathname slug access
+accessible_companies = RackJwtAegis::RequestContext.pathname_slugs(request.env)
+# => ["company-a", "company-b"]
+
+# Check if user has access to specific company
+has_access = RackJwtAegis::RequestContext.has_company_access?(request.env, "company-a")
+# => true
+
+# Helper methods for request objects
+user_id = RackJwtAegis::RequestContext.current_user_id(request)
+tenant_id = RackJwtAegis::RequestContext.current_tenant_id(request)
+```
+
+### Available Context Methods
+
+- `authenticated?(env)` - Check if request is authenticated
+- `payload(env)` - Get full JWT payload hash
+- `user_id(env)` - Get authenticated user ID
+- `tenant_id(env)` - Get tenant/company group ID
+- `subdomain(env)` - Get subdomain from JWT
+- `pathname_slugs(env)` - Get array of accessible company slugs
+- `current_user_id(request)` - Helper for request objects
+- `current_tenant_id(request)` - Helper for request objects
+- `has_company_access?(env, slug)` - Check company access
+
 ## JWT Payload Structure
 
 The middleware expects JWT payloads with the following structure:
@@ -224,10 +295,54 @@ You can customize the payload mapping using the `payload_mapping` configuration 
 - Subdomain validation
 - Request path filtering for public endpoints
 
-## Performance
+## Performance & Caching
 
 - Skip paths are checked before JWT processing
 - Low memory footprint
+- Multi-tier permission caching system for RBAC performance
+- TTL-based cache invalidation for user permissions
+- Support for multiple cache stores: `:memory`, `:redis`, `:memcached`, `:solid_cache`
+
+### Cache Store Configuration
+
+#### Supported Cache Stores
+
+1. **Memory Cache** (`:memory`) - For development and testing
+2. **Redis Cache** (`:redis`) - For production with high availability
+3. **Memcached Cache** (`:memcached`) - For distributed caching
+4. **Solid Cache** (`:solid_cache`) - For Rails 8+ applications
+
+#### Configuration Examples
+
+```ruby
+# Memory cache (development/testing)
+config.cache_store = :memory
+
+# Redis cache
+config.cache_store = :redis
+config.cache_options = { url: ENV['REDIS_URL'] }
+
+# Memcached cache
+config.cache_store = :memcached
+config.cache_options = { servers: ['localhost:11211'] }
+
+# Solid Cache (Rails 8+)
+config.cache_store = :solid_cache
+```
+
+#### Separate Cache Stores
+
+You can configure separate cache stores for RBAC permissions data and cached user permissions:
+
+```ruby
+# Use Redis for RBAC data (shared across instances)
+config.rbac_cache_store = :redis
+config.rbac_cache_options = { url: ENV['REDIS_URL'] }
+
+# Use memory for user permission cache (faster local access)
+config.permission_cache_store = :memory
+config.permission_cache_options = {}
+```
 
 ## RBAC Cache Format
 
@@ -240,17 +355,14 @@ When RBAC is enabled, the middleware expects permissions to be stored in the cac
     {
       "123": [
         "sales/invoices:get",
-        "sales/invoices:post", 
+        "sales/invoices:post",
         "%r{sales/invoices/\\d+}:get",
         "%r{sales/invoices/\\d+}:put",
         "users/*:get"
       ]
     },
     {
-      "456": [
-        "admin/*:*",
-        "reports:get"
-      ]
+      "456": ["admin/*:*", "reports:get"]
     }
   ]
 }
@@ -272,9 +384,9 @@ When RBAC is enabled, the middleware expects permissions to be stored in the cac
 "sales/invoices:get"        # GET /api/v1/company/sales/invoices
 "users/profile:put"         # PUT /api/v1/company/users/profile
 
-# Regex pattern matching  
-"%r{sales/invoices/\\d+}:get"    # GET /api/v1/company/sales/invoices/123
-"%r{users/\\d+/orders}:*"        # Any method on /api/v1/company/users/123/orders
+# Regex pattern matching
+"%r{ sales/invoices/\\d+}:get"    # GET /api/v1/company/sales/invoices/123
+"%r{ users/\\d+/orders}:*"        # Any method on /api/v1/company/users/123/orders
 
 # Wildcard method
 "reports:*"                 # Any method on reports endpoint
@@ -284,12 +396,14 @@ When RBAC is enabled, the middleware expects permissions to be stored in the cac
 ### Request Authorization Flow
 
 1. **Check User Permissions Cache**: Fast lookup in middleware cache
+
    - **RBAC Update Check**: If RBAC permissions updated within TTL → **Nuke entire cache**
-   - **TTL Check**: If individual permission older than configured TTL → Remove only that permission  
+   - **TTL Check**: If individual permission older than configured TTL → Remove only that permission
    - If cache valid and permission found: **✅ Authorized**
    - If cache valid but no permission: **❌ 403 Forbidden**
 
 2. **RBAC Permissions Validation**: Full permission evaluation
+
    - Extract user roles from JWT payload (`roles`, `role`, `user_roles`, or `role_ids` field)
    - Load RBAC permissions collection and validate format
    - For each user role, check if any permission matches:
@@ -299,12 +413,11 @@ When RBAC is enabled, the middleware expects permissions to be stored in the cac
    - If authorized: Cache permission for future requests
    - Return 403 Forbidden if no matching permissions found
 
-3. **Cache Storage**: Successful permissions cached with per-permission timestamps:
+3. **Cache Storage**: Successful permissions cached with simple key-value format:
    ```json
    {
-     "12345": {
-       "acme-group.localhost.local/api/v1/company/sales/invoices": ["get", "post", 1640995200]
-     }
+     "12345:acme-group.localhost.local/api/v1/company/sales/invoices:get": 1640995200,
+     "12345:acme-group.localhost.local/api/v1/company/sales/invoices:post": 1640995200
    }
    ```
    TTL configurable via `user_permissions_ttl` option (default: 30 minutes)
@@ -312,11 +425,13 @@ When RBAC is enabled, the middleware expects permissions to be stored in the cac
 ### Cache Invalidation Strategy
 
 **RBAC Collection Updated** (e.g., role permissions changed):
+
 - **Condition**: RBAC `last_update` within configured TTL
 - **Action**: **Nuke entire cache** (all users, all permissions)
 - **Reason**: Any permission could have changed, safer to re-evaluate everything
 
 **Individual Permission TTL Expired**:
+
 - **Condition**: Specific permission older than configured TTL
 - **Action**: **Remove only that permission** (preserve others)
 - **Reason**: Permission naturally aged out, other permissions still valid
@@ -324,17 +439,19 @@ When RBAC is enabled, the middleware expects permissions to be stored in the cac
 ### Example Authorization
 
 Request: `POST https://acme-group.localhost/api/v1/an-acme-company/sales/invoices`
+
 - User has role: `123`
 - Role `123` permissions: `["sales/invoices:get", "sales/invoices:post"]`
-- Extracted resource path: `sales/invoices`  
+- Extracted resource path: `sales/invoices`
 - Request method: `POST`
 - Result: **✅ Authorized** (matches `sales/invoices:post`)
 
 Request: `DELETE https://acme-group.localhost/api/v1/an-acme-company/sales/invoices/456`
-- User has role: `123` 
+
+- User has role: `123`
 - Role `123` permissions: `["sales/invoices:get", "%r{sales/invoices/\\d+}:put"]`
 - Extracted resource path: `sales/invoices/456`
-- Request method: `DELETE` 
+- Request method: `DELETE`
 - Result: **❌ 403 Forbidden** (no DELETE permission)
 
 ## Error Handling
