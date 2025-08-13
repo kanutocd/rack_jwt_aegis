@@ -42,4 +42,4 @@ jobs:
           fail_ci_if_error: false
           verbose: true
           use_oidc: true
-          files: ./coverage/coverage.xml
+          files: ./coverage/.resultset.json
