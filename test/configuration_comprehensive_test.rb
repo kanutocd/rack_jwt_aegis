@@ -327,4 +327,33 @@ class ConfigurationComprehensiveTest < Minitest::Test
     assert_predicate config, :rbac_enabled?
     assert_predicate config, :cache_write_enabled?
   end
+
+  def test_rbac_cache_store_required_when_cache_write_disabled
+    # Test line 303: rbac_cache_store.nil? check in zero trust mode
+    error = assert_raises(RackJwtAegis::ConfigurationError) do
+      RackJwtAegis::Configuration.new(
+        jwt_secret: 'test-secret',
+        rbac_enabled: true,
+        cache_store: :memory,
+        cache_write_enabled: false,
+        rbac_cache_store: nil # This should trigger line 303
+      )
+    end
+    assert_equal 'rbac_cache_store is required when cache_write_enabled is false', error.message
+  end
+
+  def test_permission_cache_store_defaults_to_memory_when_cache_write_disabled
+    # Test lines 307-308: permission_cache_store.nil? check and default assignment
+    config = RackJwtAegis::Configuration.new(
+      jwt_secret: 'test-secret',
+      rbac_enabled: true,
+      cache_store: :redis,
+      cache_write_enabled: false,
+      rbac_cache_store: :memory,
+      permission_cache_store: nil # This should trigger lines 307-308
+    )
+
+    # permission_cache_store should default to :memory when nil in zero trust mode
+    assert_equal :memory, config.permission_cache_store
+  end
 end
