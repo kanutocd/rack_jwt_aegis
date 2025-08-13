@@ -18,17 +18,15 @@ class RbacManagerEnhancedTest < Minitest::Test
     # Test that the manager uses the configured TTL instead of hardcoded values
     assert_equal 300, @config.user_permissions_ttl
 
-    # Setup user permissions cache with timestamp older than configured TTL
+    # Setup user permissions cache with timestamp older than configured TTL in new format
+    permission_key = @manager.send(:build_permission_key, 123, @request)
     user_permissions = {
-      '123' => {
-        'acme-group.localhost.local/api/v1/acme-company/sales/invoices' => ['post', Time.now.to_i - 400], # 400s ago, older than 300s TTL
-      },
+      permission_key => Time.now.to_i - 400, # 400s ago, older than 300s TTL
     }
     permission_cache = @manager.instance_variable_get(:@permission_cache)
     permission_cache.write('user_permissions', user_permissions)
 
     # Should be cache miss due to TTL expiration
-    permission_key = @manager.send(:build_permission_key, 123, @request)
     result = @manager.send(:check_cached_permission, permission_key)
 
     assert_nil result, 'Should be cache miss due to TTL expiration'
@@ -36,8 +34,7 @@ class RbacManagerEnhancedTest < Minitest::Test
     # Verify the stale permission was removed
     updated_permissions = permission_cache.read('user_permissions')
 
-    assert updated_permissions.nil? || updated_permissions['123'].nil? ||
-           updated_permissions['123']['acme-group.localhost.local/api/v1/acme-company/sales/invoices'].nil?,
+    assert updated_permissions.nil? || updated_permissions[permission_key].nil?,
            'Stale permission should be removed'
   end
 
@@ -63,15 +60,13 @@ class RbacManagerEnhancedTest < Minitest::Test
     user_permissions = permission_cache.read('user_permissions')
 
     assert_kind_of Hash, user_permissions
-    assert_kind_of Hash, user_permissions['123']
 
-    full_url = 'acme-group.localhost.local/api/v1/acme-company/sales/invoices'
-    cached_permission = user_permissions['123'][full_url]
+    # Check new format: permission_key => timestamp
+    permission_key = @manager.send(:build_permission_key, 123, @request)
+    cached_timestamp = user_permissions[permission_key]
 
-    assert_kind_of Array, cached_permission
-    assert_equal ['post'], cached_permission[0..-2] # Methods
-    assert_kind_of Integer, cached_permission.last, 'Last element should be timestamp'
-    assert_operator cached_permission.last, :>, (Time.now.to_i - 5), 'Timestamp should be recent'
+    assert_kind_of Integer, cached_timestamp, 'Cached value should be timestamp'
+    assert_operator cached_timestamp, :>, (Time.now.to_i - 5), 'Timestamp should be recent'
   end
 
   def test_fine_grained_permission_matching_literal
@@ -205,16 +200,18 @@ class RbacManagerEnhancedTest < Minitest::Test
   end
 
   def test_cache_preservation_on_individual_ttl_expiration
-    # Setup cache with mixed timestamps
+    # Setup cache with mixed timestamps in new format
     current_time = Time.now.to_i
+
+    # Create permission keys for different scenarios
+    expired_key = '123:acme-group.localhost.local/api/v1/acme-company/sales/invoices:post'
+    fresh_key_user_one = '123:acme-group.localhost.local/api/v1/acme-company/users/profile:get'
+    fresh_key_user_four = '456:acme-group.localhost.local/api/v1/acme-company/reports:get'
+
     user_permissions = {
-      '123' => {
-        'acme-group.localhost.local/api/v1/acme-company/sales/invoices' => ['post', current_time - 400], # Expired
-        'acme-group.localhost.local/api/v1/acme-company/users/profile' => ['get', current_time - 100], # Fresh
-      },
-      '456' => {
-        'acme-group.localhost.local/api/v1/acme-company/reports' => ['get', current_time - 150], # Fresh
-      },
+      expired_key => current_time - 400, # Expired
+      fresh_key_user_one => current_time - 100, # Fresh
+      fresh_key_user_four => current_time - 150, # Fresh
     }
     permission_cache = @manager.instance_variable_get(:@permission_cache)
     permission_cache.write('user_permissions', user_permissions)
@@ -239,12 +236,9 @@ class RbacManagerEnhancedTest < Minitest::Test
     updated_permissions = permission_cache.read('user_permissions')
 
     assert_kind_of Hash, updated_permissions, 'Cache should still exist'
-    assert_nil updated_permissions['123']['acme-group.localhost.local/api/v1/acme-company/sales/invoices'],
-               'Expired permission should be removed'
-    assert updated_permissions['123']['acme-group.localhost.local/api/v1/acme-company/users/profile'],
-           'Fresh permission for same user should be preserved'
-    assert updated_permissions['456']['acme-group.localhost.local/api/v1/acme-company/reports'],
-           "Other user's permissions should be preserved"
+    assert_nil updated_permissions[expired_key], 'Expired permission should be removed'
+    assert updated_permissions[fresh_key_user_one], 'Fresh permission for same user should be preserved'
+    assert updated_permissions[fresh_key_user_four], "Other user's permissions should be preserved"
   end
 
   def test_cache_format_validation
@@ -257,7 +251,7 @@ class RbacManagerEnhancedTest < Minitest::Test
     payload = valid_jwt_payload.merge('roles' => ['123'])
     @request.env['rack_jwt_aegis.user_roles'] = ['123']
 
-    # Should fall back to legacy format and deny access
+    # Should deny access when RBAC format is invalid
     assert_raises(RackJwtAegis::AuthorizationError) do
       @manager.authorize(@request, payload)
     end

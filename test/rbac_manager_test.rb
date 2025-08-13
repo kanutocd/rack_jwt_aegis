@@ -63,193 +63,27 @@ class RbacManagerTest < Minitest::Test
   def test_authorize_with_cached_permission_allowed
     payload = valid_jwt_payload
     permission_key = @manager.send(:build_permission_key, 123, @request)
-
-    # Mock cached permission
-    permission_cache = @manager.instance_variable_get(:@permission_cache)
-    permission_cache.write(permission_key, {
-      'permission' => true,
-      'timestamp' => Time.now.to_i,
-    })
-
-    # Mock last update timestamp
-    rbac_cache = @manager.instance_variable_get(:@rbac_cache)
-    rbac_cache.write('last-update', Time.now.to_i - 100)
-
-    # Should not raise an error
-    @manager.authorize(@request, payload)
-  end
-
-  def test_skip_test_authorize_with_cached_permission_denied
-    payload = valid_jwt_payload
-    permission_key = @manager.send(:build_permission_key, 123, @request)
     current_time = Time.now.to_i
 
-    # Mock cached permission
+    # Mock cached permission in new format
     permission_cache = @manager.instance_variable_get(:@permission_cache)
-    permission_cache.write(permission_key, {
-      'permission' => false,
-      'timestamp' => current_time,
-    })
+    user_permissions = { permission_key => current_time }
+    permission_cache.write('user_permissions', user_permissions)
 
-    # Mock last update timestamp - older than cached permission
+    # Mock last update timestamp - much older than cached permission and outside default TTL (1800s)
     rbac_cache = @manager.instance_variable_get(:@rbac_cache)
-    rbac_cache.write('last-update', current_time - 100)
+    rbac_cache.write('last-update', current_time - 2000) # Older than default TTL (1800s)
 
-    error = assert_raises(RackJwtAegis::AuthorizationError) do
-      @manager.authorize(@request, payload)
-    end
-    assert_equal 'Access denied - cached permission', error.message
-  end
-
-  def test_skip_test_authorize_with_stale_cached_permission
-    payload = valid_jwt_payload
-    permission_key = @manager.send(:build_permission_key, 123, @request)
-    rbac_key = @manager.send(:build_rbac_key, 123, @request.host, @request.path, @request.request_method)
-
-    # Mock stale cached permission
-    permission_cache = @manager.instance_variable_get(:@permission_cache)
-    permission_cache.write(permission_key, {
-      'permission' => true,
-      'timestamp' => Time.now.to_i - 1000, # Old timestamp
-    })
-
-    # Mock last update timestamp (more recent)
-    rbac_cache = @manager.instance_variable_get(:@rbac_cache)
-    rbac_cache.write('last-update', Time.now.to_i - 100)
-
-    # Mock RBAC permission (should be checked since cache is stale)
-    rbac_cache.write(rbac_key, true)
-
-    # Should not raise an error and should cache the new result
-    @manager.authorize(@request, payload)
-
-    # Verify stale cache was removed and new permission was cached
-    cached_result = permission_cache.read(permission_key)
-
-    assert cached_result['permission']
-    assert_operator cached_result['timestamp'], :>, Time.now.to_i - 10
-  end
-
-  def skip_test_authorize_rbac_permission_true_variants
-    # Moved to rbac_manager_simplified_test.rb
-  end
-
-  def test_authorize_rbac_permission_false_variants
-    payload = valid_jwt_payload
-    rbac_key = @manager.send(:build_rbac_key, 123, @request.host, @request.path, @request.request_method)
-    rbac_cache = @manager.instance_variable_get(:@rbac_cache)
-
-    [false, 'false', 0, '0'].each do |permission_value|
-      rbac_cache.clear
-      rbac_cache.write(rbac_key, permission_value)
-
-      error = assert_raises(RackJwtAegis::AuthorizationError) do
-        @manager.authorize(@request, payload)
-      end
-      assert_equal 'Access denied - insufficient permissions', error.message
-    end
-  end
-
-  def test_authorize_rbac_permission_nil
-    payload = valid_jwt_payload
-
-    error = assert_raises(RackJwtAegis::AuthorizationError) do
-      @manager.authorize(@request, payload)
-    end
-    assert_equal 'Access denied - insufficient permissions', error.message
-  end
-
-  def skip_test_authorize_with_complex_hash_permission_allowed_methods
-    payload = valid_jwt_payload
-    rbac_key = @manager.send(:build_rbac_key, 123, @request.host, @request.path, @request.request_method)
-    rbac_cache = @manager.instance_variable_get(:@rbac_cache)
-
-    rbac_cache.write(rbac_key, { 'allowed_methods' => ['GET', 'POST'] })
-
-    # Should not raise an error for GET request
-    @manager.authorize(@request, payload)
-  end
-
-  def test_authorize_with_complex_hash_permission_denied_methods
-    payload = valid_jwt_payload
-    rbac_key = @manager.send(:build_rbac_key, 123, @request.host, @request.path, @request.request_method)
-    rbac_cache = @manager.instance_variable_get(:@rbac_cache)
-
-    rbac_cache.write(rbac_key, { 'allowed_methods' => ['POST', 'PUT'] })
-
-    error = assert_raises(RackJwtAegis::AuthorizationError) do
-      @manager.authorize(@request, payload)
-    end
-    assert_equal 'Access denied - insufficient permissions', error.message
-  end
-
-  def skip_test_authorize_with_complex_hash_permission_roles
-    payload = valid_jwt_payload
-    rbac_key = @manager.send(:build_rbac_key, 123, @request.host, @request.path, @request.request_method)
-    rbac_cache = @manager.instance_variable_get(:@rbac_cache)
-
-    rbac_cache.write(rbac_key, { 'roles' => ['admin', 'user'] })
-
-    # Should not raise an error (roles present means allowed for now)
-    @manager.authorize(@request, payload)
-  end
-
-  def test_skip_test_authorize_with_complex_hash_permission_allowed_field
-    payload = valid_jwt_payload
-    rbac_key = @manager.send(:build_rbac_key, 123, @request.host, @request.path, @request.request_method)
-    rbac_cache = @manager.instance_variable_get(:@rbac_cache)
-
-    rbac_cache.write(rbac_key, { 'allowed' => true })
     # Should not raise an error
     @manager.authorize(@request, payload)
-
-    rbac_cache.write(rbac_key, { 'allowed' => false })
-    error = assert_raises(RackJwtAegis::AuthorizationError) do
-      @manager.authorize(@request, payload)
-    end
-    assert_equal 'Access denied - insufficient permissions', error.message
   end
 
-  def test_authorize_with_complex_hash_permission_unknown_structure
-    payload = valid_jwt_payload
-    rbac_key = @manager.send(:build_rbac_key, 123, @request.host, @request.path, @request.request_method)
-    rbac_cache = @manager.instance_variable_get(:@rbac_cache)
+  def test_build_permission_key
+    user_id = 123
+    expected_key = "#{user_id}:#{@request.host}#{@request.path}:#{@request.request_method.downcase}"
+    actual_key = @manager.send(:build_permission_key, user_id, @request)
 
-    rbac_cache.write(rbac_key, { 'unknown_field' => 'value' })
-
-    error = assert_raises(RackJwtAegis::AuthorizationError) do
-      @manager.authorize(@request, payload)
-    end
-    assert_equal 'Access denied - insufficient permissions', error.message
-  end
-
-  def test_skip_test_authorize_with_complex_array_permission
-    payload = valid_jwt_payload
-    rbac_key = @manager.send(:build_rbac_key, 123, @request.host, @request.path, @request.request_method)
-    rbac_cache = @manager.instance_variable_get(:@rbac_cache)
-
-    rbac_cache.write(rbac_key, ['GET', 'POST'])
-    # Should not raise an error for GET request
-    @manager.authorize(@request, payload)
-
-    rbac_cache.write(rbac_key, ['POST', 'PUT'])
-    error = assert_raises(RackJwtAegis::AuthorizationError) do
-      @manager.authorize(@request, payload)
-    end
-    assert_equal 'Access denied - insufficient permissions', error.message
-  end
-
-  def test_authorize_with_unknown_complex_permission
-    payload = valid_jwt_payload
-    rbac_key = @manager.send(:build_rbac_key, 123, @request.host, @request.path, @request.request_method)
-    rbac_cache = @manager.instance_variable_get(:@rbac_cache)
-
-    rbac_cache.write(rbac_key, Object.new)
-
-    error = assert_raises(RackJwtAegis::AuthorizationError) do
-      @manager.authorize(@request, payload)
-    end
-    assert_equal 'Access denied - insufficient permissions', error.message
+    assert_equal expected_key, actual_key
   end
 
   def test_skip_test_authorize_rbac_cache_error
@@ -262,14 +96,17 @@ class RbacManagerTest < Minitest::Test
     manager = RackJwtAegis::RbacManager.new(config)
 
     payload = valid_jwt_payload
-    rbac_key = manager.send(:build_rbac_key, 123, @request.host, @request.path, @request.request_method)
 
-    # Mock RBAC cache to throw error
+    # Mock permission cache to return empty (no cached permission)
+    permission_cache = manager.instance_variable_get(:@permission_cache)
+    permission_cache.expects(:read).with('user_permissions').returns({})
+
+    # Mock RBAC cache to throw error when checking permissions (called twice - once in get_rbac_last_update_timestamp, once in check_rbac_permission)
     rbac_cache = manager.instance_variable_get(:@rbac_cache)
-    rbac_cache.expects(:read).with(rbac_key).raises(RackJwtAegis::CacheError.new('Connection failed'))
+    rbac_cache.expects(:read).with('permissions').raises(RackJwtAegis::CacheError.new('Connection failed')).twice
 
-    # Expect warning to be printed
-    manager.expects(:warn).with(regexp_matches(/RbacManager RBAC cache error/))
+    # Expect warnings to be printed for both RBAC cache errors
+    manager.expects(:warn).with(regexp_matches(/RbacManager/)).twice
 
     error = assert_raises(RackJwtAegis::AuthorizationError) do
       manager.authorize(@request, payload)
@@ -277,137 +114,35 @@ class RbacManagerTest < Minitest::Test
     assert_equal 'Access denied - insufficient permissions', error.message
   end
 
-  def skip_test_cached_permission_cache_read_error
-    config = RackJwtAegis::Configuration.new(basic_config.merge(
-                                               cache_store: :memory,
-                                               cache_write_enabled: true,
-                                               debug_mode: true,
-                                             ))
-    manager = RackJwtAegis::RbacManager.new(config)
-
-    payload = valid_jwt_payload
-    permission_key = manager.send(:build_permission_key, 123, @request)
-    rbac_key = manager.send(:build_rbac_key, 123, @request.host, @request.path, @request.request_method)
-
-    # Create real cache but stub the read method for the permission key only
-    permission_cache = manager.instance_variable_get(:@permission_cache)
-    permission_cache.expects(:read).with(permission_key).raises(RackJwtAegis::CacheError.new('Permission cache failed'))
-
-    # RBAC cache will be called since permission cache failed
-    rbac_cache = manager.instance_variable_get(:@rbac_cache)
-    rbac_cache.write(rbac_key, true)
-
-    # Should warn about cache error but continue
-    manager.expects(:warn).with(regexp_matches(/RbacManager cache read error/))
-
-    # Should not raise authorization error since RBAC check succeeds
-    manager.authorize(@request, payload)
-  end
-
-  def skip_test_cache_permission_result_error
-    payload = valid_jwt_payload
-    rbac_key = @manager.send(:build_rbac_key, 123, @request.host, @request.path, @request.request_method)
-    rbac_cache = @manager.instance_variable_get(:@rbac_cache)
-    rbac_cache.write(rbac_key, true)
-
-    # Mock cache write error
-    permission_cache = @manager.instance_variable_get(:@permission_cache)
-    permission_cache.expects(:write).raises(RackJwtAegis::CacheError.new('Write failed'))
-
-    @config.debug_mode = true
-
-    # Should warn about cache error but not fail the request
-    @manager.expects(:warn).with(regexp_matches(/RbacManager permission cache write error/))
-
-    # Should not raise authorization error
-    @manager.authorize(@request, payload)
-  end
-
-  def skip_test_last_update_timestamp_cache_error
-    payload = valid_jwt_payload
-    permission_key = @manager.send(:build_permission_key, 123, @request)
-
-    # Mock cached permission
-    permission_cache = @manager.instance_variable_get(:@permission_cache)
-    permission_cache.write(permission_key, {
-      'permission' => true,
-      'timestamp' => Time.now.to_i,
-    })
-
-    # Mock cache error on last-update read
-    rbac_cache = @manager.instance_variable_get(:@rbac_cache)
-    rbac_cache.expects(:read).with('last-update').raises(RackJwtAegis::CacheError.new('Read failed'))
-
-    @config.debug_mode = true
-
-    # Should warn about cache error
-    @manager.expects(:warn).with(regexp_matches(/RbacManager last-update read error/))
-
-    # Should continue with cached permission since last-update failed
-    @manager.authorize(@request, payload)
-  end
-
   def test_skip_test_invalid_cached_entry_format
     payload = valid_jwt_payload
     permission_key = @manager.send(:build_permission_key, 123, @request)
-    rbac_key = @manager.send(:build_rbac_key, 123, @request.host, @request.path, @request.request_method)
 
-    # Mock invalid cached entry
+    # Mock invalid cached entry in user_permissions
     permission_cache = @manager.instance_variable_get(:@permission_cache)
-    permission_cache.write(permission_key, 'invalid_format')
+    user_permissions = { permission_key => 'invalid_format' } # Should be integer timestamp
+    permission_cache.write('user_permissions', user_permissions)
 
-    # Mock RBAC cache to provide fallback
+    # Mock RBAC cache to provide fallback - using new format
     rbac_cache = @manager.instance_variable_get(:@rbac_cache)
-    rbac_cache.write(rbac_key, true)
+    rbac_data = {
+      'last_update' => Time.now.to_i,
+      'permissions' => [
+        { '123' => ['users:get'] },
+      ],
+    }
+    rbac_cache.write('permissions', rbac_data)
 
-    # Should delete invalid cache entry and fallback to RBAC
+    # Set user roles for new format
+    @request.env['rack_jwt_aegis.user_roles'] = ['123']
+
+    # Should ignore invalid cache entry and fallback to RBAC
     @manager.authorize(@request, payload)
 
-    # Verify invalid entry was removed
-    assert_nil permission_cache.read(permission_key)
-  end
+    # Verify cache was updated with valid entry
+    updated_permissions = permission_cache.read('user_permissions')
+    cached_timestamp = updated_permissions[permission_key]
 
-  def test_build_permission_key
-    user_id = 123
-    expected_key = "#{user_id}:#{@request.host}:#{@request.path}:#{@request.request_method}"
-    actual_key = @manager.send(:build_permission_key, user_id, @request)
-
-    assert_equal expected_key, actual_key
-  end
-
-  def test_build_rbac_key
-    user_id = 123
-    host = 'example.com'
-    path = '/api/users'
-    method = 'GET'
-
-    expected_key = "#{user_id}:#{host}:#{path}:#{method}"
-    actual_key = @manager.send(:build_rbac_key, user_id, host, path, method)
-
-    assert_equal expected_key, actual_key
-  end
-
-  def test_authorize_without_permission_cache_write_enabled
-    config = RackJwtAegis::Configuration.new(basic_config.merge(
-                                               rbac_cache_store: :memory,
-                                               cache_write_enabled: false,
-                                             ))
-    manager = RackJwtAegis::RbacManager.new(config)
-
-    payload = valid_jwt_payload
-    request = rack_request(method: 'GET', path: '/api/users')
-    rbac_key = manager.send(:build_rbac_key, 123, request.host, request.path, request.request_method)
-
-    # Mock RBAC cache to allow access
-    rbac_cache = manager.instance_variable_get(:@rbac_cache)
-    rbac_cache.write(rbac_key, true)
-
-    # Should not use permission cache when cache_write_enabled is false
-    permission_cache = manager.instance_variable_get(:@permission_cache)
-
-    assert_nil permission_cache
-
-    # Should still authorize successfully
-    manager.authorize(request, payload)
+    assert_kind_of Integer, cached_timestamp, 'Invalid entry should be replaced with valid timestamp'
   end
 end

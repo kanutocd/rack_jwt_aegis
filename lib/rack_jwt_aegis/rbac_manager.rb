@@ -16,7 +16,6 @@ module RackJwtAegis
   #   manager.authorize(request, jwt_payload)
   class RbacManager
     CACHE_TTL = 300 # 5 minutes default cache TTL
-    LAST_UPDATE_KEY = 'last-update'
 
     # Initialize the RBAC manager
     #
@@ -82,14 +81,15 @@ module RackJwtAegis
     end
 
     def build_permission_key(user_id, request)
-      "#{user_id}:#{request.host}:#{request.path}:#{request.request_method}"
+      full_url = "#{request.host}#{request.path}"
+      "#{user_id}:#{full_url}:#{request.request_method.downcase}"
     end
 
     def check_cached_permission(permission_key)
       return nil unless @permission_cache
 
       begin
-        # Get the user permissions cache
+        # Get the user permissions cache using new format
         user_permissions = @permission_cache.read('user_permissions')
         return nil if user_permissions.nil? || !user_permissions.is_a?(Hash)
 
@@ -106,46 +106,24 @@ module RackJwtAegis
           end
         end
 
-        # Extract user_id, host, path, and method from permission_key
-        # Format: "user_id:host:path:method"
-        parts = permission_key.split(':', 4)
-        return nil unless parts.length == 4
-
-        user_id, host, path, method = parts
-        full_url = "#{host}#{path}"
-
-        # Check if user has cached permissions
-        user_cache = user_permissions[user_id]
-        return nil unless user_cache.is_a?(Hash)
-
-        # Get permission entry for this specific URL
-        url_permission = user_cache[full_url]
-        return nil unless url_permission.is_a?(Array) && url_permission.length.positive?
-
-        # Extract methods and timestamp from permission entry
-        # Format: ["method1", "method2", timestamp]
-        timestamp = url_permission.last
-        return nil unless timestamp.is_a?(Integer)
-
-        allowed_methods = url_permission[0..-2] # All elements except the last (timestamp)
-
-        # Check if the specific method is allowed
-        return nil unless allowed_methods.include?(method.downcase)
+        # Check if permission exists in new format: {"user_id:full_url:method" => timestamp}
+        cached_timestamp = user_permissions[permission_key]
+        return nil unless cached_timestamp.is_a?(Integer)
 
         current_time = Time.now.to_i
-        permission_age = current_time - timestamp
+        permission_age = current_time - cached_timestamp
 
-        # Second check: TTL expiration (only for individual permission cleanup)
+        # Second check: TTL expiration
         if permission_age > @config.user_permissions_ttl
           # This specific permission expired due to TTL
-          remove_stale_permission(user_id, full_url,
+          remove_stale_permission(permission_key,
                                   "TTL expired (#{permission_age}s > #{@config.user_permissions_ttl}s)")
           return nil
         end
 
-        # Permission is fresh and method is allowed
+        # Permission is fresh
         if @config.debug_mode?
-          debug_log("Cache hit: user #{user_id} has #{method.upcase} access to #{full_url} (permission age: #{permission_age}s, RBAC age: #{rbac_update_age || 'unknown'}s)")
+          debug_log("Cache hit: #{permission_key} (permission age: #{permission_age}s, RBAC age: #{rbac_update_age || 'unknown'}s)")
         end
         true
       rescue CacheError => e
@@ -156,18 +134,15 @@ module RackJwtAegis
     end
 
     def check_rbac_permission(user_id, request)
-      # First try the new RBAC permissions collection format
       rbac_data = @rbac_cache.read('permissions')
 
-      # If new format exists and is valid, use it
+      # Check if RBAC data exists and is valid
       if rbac_data.is_a?(Hash) && validate_rbac_cache_format(rbac_data)
-        debug_log('Using new RBAC permissions format') if @config.debug_mode?
-        return check_new_rbac_format(user_id, request, rbac_data)
+        return check_rbac_format(user_id, request, rbac_data)
       end
 
-      # Fallback to legacy format for backward compatibility
-      debug_log('Falling back to legacy RBAC format') if @config.debug_mode?
-      check_legacy_rbac_format(user_id, request)
+      # No valid RBAC data found
+      false
     rescue CacheError => e
       # Cache error - fail secure (deny access)
       warn "RbacManager RBAC cache error: #{e.message}" if @config.debug_mode?
@@ -176,22 +151,28 @@ module RackJwtAegis
 
     def cache_permission_result(permission_key, has_permission)
       return unless @permission_cache
+      return unless has_permission # Only cache positive permissions
 
       begin
         current_time = Time.now.to_i
-        cache_entry = {
-          'permission' => has_permission,
-          'timestamp' => current_time,
-        }
 
-        @permission_cache.write(permission_key, cache_entry, expires_in: CACHE_TTL)
+        # Get existing user permissions cache or create new one
+        user_permissions = @permission_cache.read('user_permissions') || {}
+
+        # Store permission with new format: {"user_id:full_url:method" => timestamp}
+        user_permissions[permission_key] = current_time
+
+        # Write back to cache
+        @permission_cache.write('user_permissions', user_permissions, expires_in: CACHE_TTL)
+
+        debug_log("Cached permission: #{permission_key} => #{current_time}") if @config.debug_mode?
       rescue CacheError => e
         # Log cache error but don't fail the request
         warn "RbacManager permission cache write error: #{e.message}" if @config.debug_mode?
       end
     end
 
-    def check_new_rbac_format(user_id, request, rbac_data)
+    def check_rbac_format(user_id, request, rbac_data)
       # Extract user roles from JWT payload
       user_roles = extract_user_roles_from_request(request)
       if user_roles.nil? || user_roles.empty?
@@ -211,7 +192,7 @@ module RackJwtAegis
 
           # Cache this specific permission match for faster future lookups
           if @permission_cache && @config.cache_write_enabled?
-            cache_specific_permission_match(user_id, request, role_id, matched_permission)
+            cache_permission_match(user_id, request, role_id, matched_permission)
           end
           return true
         end
@@ -220,86 +201,43 @@ module RackJwtAegis
       false
     end
 
-    def check_legacy_rbac_format(user_id, request)
-      # Build RBAC lookup key for legacy format
-      rbac_key = build_rbac_key(user_id, request.host, request.path, request.request_method)
 
-      # Check RBAC cache store for permission
-      permission_data = @rbac_cache.read(rbac_key)
-
-      if permission_data.nil?
-        # No explicit permission found - default to deny
-        false
-      else
-        # Permission data found - check if it grants access
-        case permission_data
-        when true, 'true', 1, '1'
-          true
-        when false, 'false', 0, '0'
-          false
-        else
-          # Complex permission data - delegate to custom logic if available
-          evaluate_complex_permission?(permission_data, user_id, request)
-        end
-      end
-    end
-
-    def last_update_timestamp
-      # Try to get from RBAC permissions cache first (new format)
-      rbac_data = @rbac_cache.read('permissions')
-      if rbac_data.is_a?(Hash) && (rbac_data['last_update'] || rbac_data[:last_update])
-        return rbac_data['last_update'] || rbac_data[:last_update]
-      end
-
-      # Fallback to legacy format
-      @rbac_cache.read(LAST_UPDATE_KEY)
-    rescue CacheError => e
-      warn "RbacManager last-update read error: #{e.message}" if @config.debug_mode?
-      nil
-    end
 
     # Get RBAC permissions collection last_update timestamp
     def get_rbac_last_update_timestamp
       return nil unless @rbac_cache
 
       begin
-        # Try new RBAC permissions format first
         rbac_data = @rbac_cache.read('permissions')
         if rbac_data.is_a?(Hash) && (rbac_data['last_update'] || rbac_data[:last_update])
           return rbac_data['last_update'] || rbac_data[:last_update]
         end
-
-        # Fallback to legacy format
-        @rbac_cache.read(LAST_UPDATE_KEY)
+        nil
       rescue CacheError => e
         warn "RbacManager RBAC last-update read error: #{e.message}" if @config.debug_mode?
         nil
       end
     end
 
-    # Remove a specific stale permission for a user/URL combination
-    def remove_stale_permission(user_id, full_url, reason)
+    # Remove a specific stale permission
+    def remove_stale_permission(permission_key, reason)
       return unless @permission_cache
 
       begin
         user_permissions = @permission_cache.read('user_permissions')
         return unless user_permissions.is_a?(Hash)
-        return unless user_permissions[user_id].is_a?(Hash)
 
-        # Remove the specific URL permission
-        user_permissions[user_id].delete(full_url)
+        # Remove the specific permission key
+        user_permissions.delete(permission_key)
 
-        # If user has no more cached permissions, remove the user entry
-        user_permissions.delete(user_id) if user_permissions[user_id].empty?
-
-        # If no users have cached permissions, remove the entire cache
+        # If no permissions remain, remove the entire cache
         if user_permissions.empty?
           @permission_cache.delete('user_permissions')
           debug_log("Removed last permission, cleared entire cache: #{reason}") if @config.debug_mode?
         else
           # Update the cache with the modified permissions
           @permission_cache.write('user_permissions', user_permissions, expires_in: CACHE_TTL)
-          debug_log("Removed stale permission for user #{user_id} URL #{full_url}: #{reason}") if @config.debug_mode?
+          debug_log("Removed stale permission #{permission_key}: #{reason}") if @config.debug_mode?
         end
       rescue CacheError => e
         warn "RbacManager stale permission removal error: #{e.message}" if @config.debug_mode?
@@ -318,53 +256,9 @@ module RackJwtAegis
       end
     end
 
-    def build_rbac_key(user_id, host, path, method)
-      # Standard RBAC key format as defined in architecture
-      "#{user_id}:#{host}:#{path}:#{method}"
-    end
 
-    def evaluate_complex_permission?(permission_data, user_id, request)
-      # Handle complex permission data structures
-      case permission_data
-      when Hash
-        # Permission data is a hash - could contain role-based rules
-        evaluate_hash_permission?(permission_data, user_id, request)
-      when Array
-        # Permission data is an array - could be list of allowed actions
-        evaluate_array_permission?(permission_data, request.request_method)
-      else
-        # Unknown format - default to deny
-        false
-      end
-    end
 
-    def evaluate_hash_permission?(permission_hash, _user_id, request)
-      # Example: {"allowed_methods": ["GET", "POST"], "roles": ["admin"]}
 
-      # Check allowed methods
-      if permission_hash['allowed_methods']
-        allowed_methods = Array(permission_hash['allowed_methods'])
-        return allowed_methods.include?(request.request_method)
-      end
-
-      # Check roles (would need role information from JWT payload)
-      if permission_hash['roles']
-        # This would require additional JWT payload inspection
-        # For now, default to allowing if roles are specified
-        return true
-      end
-
-      # Check boolean permission field
-      return !!permission_hash['allowed'] if permission_hash.key?('allowed')
-
-      # Default deny for unknown hash structure
-      false
-    end
-
-    def evaluate_array_permission?(permission_array, request_method)
-      # Array of allowed HTTP methods
-      permission_array.include?(request_method)
-    end
 
     # Extract user roles from request context (stored by middleware)
     def extract_user_roles_from_request(request)
@@ -401,46 +295,29 @@ module RackJwtAegis
     end
 
     # Cache the specific permission match for faster future lookups
-    # Format: { user_id: { "request-full-url": ["http-method1", "http-method2", timestamp] } }
-    def cache_specific_permission_match(user_id, request, _role_id, _matched_permission)
+    # Format: {"user_id:full_url:method" => timestamp}
+    def cache_permission_match(user_id, request, _role_id, _matched_permission)
       return unless @permission_cache
 
       begin
         current_time = Time.now.to_i
 
-        # Build the full URL key
+        # Build the permission key in new format
         host = request.host || 'localhost'
         full_url = "#{host}#{request.path}"
         method = request.request_method.downcase
+        permission_key = "#{user_id}:#{full_url}:#{method}"
 
         # Get existing user permissions cache or create new one
         user_permissions = @permission_cache.read('user_permissions') || {}
-        user_permissions[user_id.to_s] ||= {}
 
-        # Get existing permission entry for this URL
-        url_permissions = user_permissions[user_id.to_s][full_url]
-
-        if url_permissions.is_a?(Array) && url_permissions.length.positive?
-          # Extract existing methods and timestamp
-          url_permissions.last.is_a?(Integer) ? url_permissions.pop : current_time
-          existing_methods = url_permissions
-
-          # Add the new method if not already present
-          existing_methods << method unless existing_methods.include?(method)
-
-          # Update with new timestamp and methods
-          user_permissions[user_id.to_s][full_url] = existing_methods + [current_time]
-        else
-          # First permission for this URL
-          user_permissions[user_id.to_s][full_url] = [method, current_time]
-        end
+        # Store permission with new format
+        user_permissions[permission_key] = current_time
 
         # Write back to cache
         @permission_cache.write('user_permissions', user_permissions, expires_in: CACHE_TTL)
 
-        if @config.debug_mode?
-          debug_log("Cached user permission: user_id=#{user_id}, url=#{full_url}, method=#{method}, timestamp=#{current_time}")
-        end
+        debug_log("Cached user permission: #{permission_key} => #{current_time}") if @config.debug_mode?
       rescue CacheError => e
         # Log cache error but don't fail the request
         warn "RbacManager permission cache write error: #{e.message}" if @config.debug_mode?
