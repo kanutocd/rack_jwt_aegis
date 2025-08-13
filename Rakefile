@@ -59,14 +59,6 @@ begin
   end
 rescue LoadError
   puts 'YARD gem is not available. Install it with: gem install yard'
-
-  task :yard do
-    abort 'YARD is not available. Install it with: gem install yard'
-  end
-
-  task :docs do
-    abort 'YARD is not available. Install it with: gem install yard'
-  end
 end
 
 task default: :test
