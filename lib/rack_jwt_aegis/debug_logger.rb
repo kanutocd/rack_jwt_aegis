@@ -20,7 +20,7 @@ module RackJwtAegis
       timestamp = Time.now.strftime('%Y-%m-%d %H:%M:%S.%L')
 
       # Determine component name for log prefix
-      component_name = component || infer_component_name
+      component_name = component || self.class.name.split('::').last || 'RackJwtAegis'
 
       formatted_message = "[#{timestamp}] #{component_name}: #{message}"
 
@@ -29,22 +29,6 @@ module RackJwtAegis
         warn formatted_message
       else
         puts formatted_message
-      end
-    end
-
-    private
-
-    # Infer component name from class name
-    #
-    # @return [String] the inferred component name
-    def infer_component_name
-      case self.class.name
-      when /Middleware/
-        'RackJwtAegis'
-      when /RbacManager/
-        'RbacManager'
-      else
-        self.class.name.split('::').last || 'RackJwtAegis'
       end
     end
   end
