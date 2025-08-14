@@ -51,7 +51,7 @@ module RackJwtAegis
       has_permission = check_rbac_permission(user_id, request)
 
       # Cache the result if middleware has write access
-      cache_permission_result(permission_key, has_permission) if @permission_cache && @config.cache_write_enabled?
+      cache_permission_result(permission_key, has_permission)
 
       return if has_permission
 
@@ -83,23 +83,21 @@ module RackJwtAegis
     end
 
     def build_permission_key(user_id, request)
-      full_url = "#{request.host}#{request.path}"
-      "#{user_id}:#{full_url}:#{request.request_method.downcase}"
+      "#{user_id}:#{request.host}#{request.path}:#{request.request_method.downcase}"
     end
 
     def check_cached_permission(permission_key)
       return nil unless @permission_cache
 
       begin
-        # Get the user permissions cache using new format
+        # Get the cached user permissions
         user_permissions = @permission_cache.read('user_permissions')
         return nil if user_permissions.nil? || !user_permissions.is_a?(Hash)
 
         # First check: If RBAC permissions were updated recently, nuke ALL cached permissions
         rbac_last_update = rbac_last_update_timestamp
         if rbac_last_update
-          current_time = Time.now.to_i
-          rbac_update_age = current_time - rbac_last_update
+          rbac_update_age = Time.now.to_i - rbac_last_update
 
           # If RBAC was updated within the TTL period, all cached permissions are invalid
           if rbac_update_age <= @config.user_permissions_ttl
@@ -108,12 +106,11 @@ module RackJwtAegis
           end
         end
 
-        # Check if permission exists in new format: {"user_id:full_url:method" => timestamp}
+        # Check if permission exists in this format: {"user_id:full_url:method" => timestamp}
         cached_timestamp = user_permissions[permission_key]
         return nil unless cached_timestamp.is_a?(Integer)
 
-        current_time = Time.now.to_i
-        permission_age = current_time - cached_timestamp
+        permission_age = Time.now.to_i - cached_timestamp
 
         # Second check: TTL expiration
         if permission_age > @config.user_permissions_ttl
@@ -208,7 +205,7 @@ module RackJwtAegis
 
       begin
         rbac_data = @rbac_cache.read('permissions')
-        if rbac_data.is_a?(Hash) && (rbac_data['last_update'] || rbac_data[:last_update])
+        if rbac_data.is_a?(Hash) && (rbac_data.key?('last_update') || rbac_data.key?(:last_update))
           return rbac_data['last_update'] || rbac_data[:last_update]
         end
 

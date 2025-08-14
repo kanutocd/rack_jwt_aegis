@@ -8,6 +8,7 @@ class RbacManagerEnhancedTest < Minitest::Test
                                                 cache_store: :memory,
                                                 cache_write_enabled: true,
                                                 user_permissions_ttl: 300, # 5 minutes for testing
+                                                debug_mode: true,
                                               ))
     @manager = RackJwtAegis::RbacManager.new(@config)
     @request = rack_request(method: 'POST', path: '/api/v1/acme-company/sales/invoices',
@@ -170,10 +171,10 @@ class RbacManagerEnhancedTest < Minitest::Test
     # Setup initial cache
     current_time = Time.now.to_i
     user_permissions = {
-      '123' => {
-        'acme-group.localhost.local/api/v1/acme-company/sales/invoices' => ['get', 'post', current_time - 100],
-      },
+      '54321:acme-group.localhost.local/api/v1/acme-company/sales/invoices:get' => current_time - 100,
+      '54321:acme-group.localhost.local/api/v1/acme-company/sales/invoices:post' => current_time - 100,
     }
+
     permission_cache = @manager.instance_variable_get(:@permission_cache)
     permission_cache.write('user_permissions', user_permissions)
 
@@ -194,6 +195,7 @@ class RbacManagerEnhancedTest < Minitest::Test
     assert_nil result, 'Should be cache miss due to RBAC update within TTL'
 
     # Verify entire cache was nuked
+    permission_cache = @manager.instance_variable_get(:@permission_cache)
     updated_permissions = permission_cache.read('user_permissions')
 
     assert_nil updated_permissions, 'Entire cache should be nuked'

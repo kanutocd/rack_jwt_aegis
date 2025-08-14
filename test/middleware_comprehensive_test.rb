@@ -198,6 +198,7 @@ class MiddlewareComprehensiveTest < Minitest::Test
   def test_enabled_features_all_enabled
     config = {
       jwt_secret: 'test-secret',
+      validate_tenant_id: true,
       validate_subdomain: true,
       validate_pathname_slug: true,
       rbac_enabled: true,
@@ -207,7 +208,7 @@ class MiddlewareComprehensiveTest < Minitest::Test
 
     features = middleware.send(:enabled_features)
 
-    assert_equal 'JWT, Subdomain, CompanySlug, RBAC', features
+    assert_equal 'JWT, TenantId, Subdomain, PathnameSlug, RBAC', features
   end
 
   def test_debug_log_enabled
@@ -222,7 +223,7 @@ class MiddlewareComprehensiveTest < Minitest::Test
       middleware.send(:debug_log, 'Test message')
     end
 
-    assert_match(/RackJwtAegis: Test message/, output.first)
+    assert_match(/Middleware: Test message/, output.first)
   end
 
   def test_debug_log_disabled
@@ -477,6 +478,7 @@ class MiddlewareComprehensiveTest < Minitest::Test
       rbac_enabled: true,
       rbac_cache_store: :memory,
       cache_write_enabled: true,
+      payload_mapping: { role_ids: :roles },
     }
     middleware = RackJwtAegis::Middleware.new(@app, config)
 

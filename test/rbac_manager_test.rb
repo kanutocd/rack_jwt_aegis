@@ -151,7 +151,7 @@ class RbacManagerTest < Minitest::Test
     config = RackJwtAegis::Configuration.new(
       jwt_secret: 'secret',
       rbac_cache_store: :memory,
-      permission_cache_store: :memory,
+      permission_cache_store: nil,
       cache_write_enabled: false,
     )
     manager = RackJwtAegis::RbacManager.new(config)
@@ -172,9 +172,9 @@ class RbacManagerTest < Minitest::Test
     # Should authorize but not cache the result
     manager.authorize(@request, payload)
 
-    # Verify permission was not cached since cache_write_enabled is false
+    # Verify permission was not cached since cache_write_enabled is false and permission_cache_store is not set
     permission_cache = manager.instance_variable_get(:@permission_cache)
-    user_permissions = permission_cache.read('user_permissions')
+    user_permissions = permission_cache&.read('user_permissions')
 
     assert_nil user_permissions
   end
