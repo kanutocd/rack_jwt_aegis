@@ -19,6 +19,7 @@ module RackJwtAegis
   # @example With multi-tenant validation
   #   config = Configuration.new(
   #     jwt_secret: 'your-secret',
+  #     validate_tenant_id: true,
   #     validate_subdomain: true,
   #     validate_pathname_slug: true
   #   )
@@ -95,21 +96,14 @@ module RackJwtAegis
     # @param payload [Hash] the JWT payload to validate
     # @raise [AuthenticationError] if required claims are missing
     def validate_required_claims(payload)
-      required_claims = []
-
       # Always require user identification
-      required_claims << @config.payload_key(:user_id)
-
-      # Multi-tenant validation requirements
-      if @config.validate_subdomain?
-        required_claims << @config.payload_key(:tenant_id)
-        required_claims << @config.payload_key(:subdomain)
-      end
-
+      required_claims = [@config.payload_key(:user_id)]
+      required_claims << @config.payload_key(:subdomain) if @config.validate_subdomain?
+      required_claims << @config.payload_key(:tenant_id) if @config.validate_tenant_id?
       required_claims << @config.payload_key(:pathname_slugs) if @config.validate_pathname_slug?
+      required_claims << @config.payload_key(:role_ids) if @config.rbac_enabled?
 
-      missing_claims = required_claims.select { |claim| payload[claim.to_s].nil? }
-
+      missing_claims = required_claims.select { |claim| payload[claim.to_s].to_s.empty? }
       return if missing_claims.empty?
 
       raise AuthenticationError, "JWT payload missing required claims: #{missing_claims.join(', ')}"
@@ -120,25 +114,24 @@ module RackJwtAegis
     # @param payload [Hash] the JWT payload to validate
     # @raise [AuthenticationError] if claim types are invalid
     def validate_claim_types(payload)
-      user_id_key = @config.payload_key(:user_id).to_s
-
+      user_id = payload[@config.payload_key(:user_id).to_s]
       # User ID should be numeric or string
-      if payload[user_id_key] && !payload[user_id_key].is_a?(Numeric) && !payload[user_id_key].is_a?(String)
+      if user_id.to_s.empty? || (!user_id.is_a?(Numeric) && !user_id.is_a?(String))
         raise AuthenticationError, 'Invalid user_id format in JWT payload'
       end
 
-      # Company group ID should be numeric or string (if present)
-      if @config.validate_subdomain?
-        tenant_id_key = @config.payload_key(:tenant_id).to_s
-        if payload[tenant_id_key] && !payload[tenant_id_key].is_a?(Numeric) && !payload[tenant_id_key].is_a?(String)
+      # Tenant ID should be numeric or string (if present)
+      if @config.validate_tenant_id?
+        tenant_id = payload[@config.payload_key(:tenant_id).to_s]
+        if tenant_id.to_s.empty? || (!tenant_id.is_a?(Numeric) && !tenant_id.is_a?(String))
           raise AuthenticationError, 'Invalid tenant_id format in JWT payload'
         end
       end
 
       # Company group domain should be string (if present)
       if @config.validate_subdomain?
-        company_domain_key = @config.payload_key(:subdomain).to_s
-        if payload[company_domain_key] && !payload[company_domain_key].is_a?(String)
+        subdomain = payload[@config.payload_key(:subdomain).to_s]
+        if subdomain.to_s.empty? || !subdomain.is_a?(String)
           raise AuthenticationError, 'Invalid subdomain format in JWT payload'
         end
       end
@@ -146,8 +139,8 @@ module RackJwtAegis
       # Company slugs should be array (if present)
       return unless @config.validate_pathname_slug?
 
-      pathname_slugs_key = @config.payload_key(:pathname_slugs).to_s
-      return unless payload[pathname_slugs_key] && !payload[pathname_slugs_key].is_a?(Array)
+      pathname_slugs = payload[@config.payload_key(:pathname_slugs).to_s]
+      return unless pathname_slugs && !pathname_slugs.is_a?(Array)
 
       raise AuthenticationError, 'Invalid pathname_slugs format in JWT payload - must be array'
     end

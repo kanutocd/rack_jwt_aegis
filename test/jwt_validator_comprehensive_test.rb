@@ -83,7 +83,7 @@ class JwtValidatorComprehensiveTest < Minitest::Test
   end
 
   def test_validate_required_claims_with_subdomain_enabled
-    config = RackJwtAegis::Configuration.new(basic_config.merge(validate_subdomain: true))
+    config = RackJwtAegis::Configuration.new(basic_config.merge(validate_tenant_id: true, validate_subdomain: true))
     validator = RackJwtAegis::JwtValidator.new(config)
 
     # Missing tenant_id and subdomain
@@ -139,7 +139,7 @@ class JwtValidatorComprehensiveTest < Minitest::Test
   end
 
   def test_validate_claim_types_invalid_tenant_id_format_with_subdomain
-    config = RackJwtAegis::Configuration.new(basic_config.merge(validate_subdomain: true))
+    config = RackJwtAegis::Configuration.new(basic_config.merge(validate_tenant_id: true, validate_subdomain: true))
     validator = RackJwtAegis::JwtValidator.new(config)
 
     payload = {

@@ -273,7 +273,7 @@ accessible_companies = RackJwtAegis::RequestContext.pathname_slugs(request.env)
 # => ["company-a", "company-b"]
 
 # Check if user has access to specific company
-has_access = RackJwtAegis::RequestContext.has_company_access?(request.env, "company-a")
+has_access = RackJwtAegis::RequestContext.has_pathname_slug_access?(request.env, "company-a")
 # => true
 
 # Helper methods for request objects
@@ -291,7 +291,7 @@ tenant_id = RackJwtAegis::RequestContext.current_tenant_id(request)
 - `pathname_slugs(env)` - Get array of accessible company slugs
 - `current_user_id(request)` - Helper for request objects
 - `current_tenant_id(request)` - Helper for request objects
-- `has_company_access?(env, slug)` - Check company access
+- `has_pathname_slug_access?(env, slug)` - Check company access
 
 ## JWT Payload Structure
 
