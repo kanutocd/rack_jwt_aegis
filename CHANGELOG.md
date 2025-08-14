@@ -5,6 +5,80 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] - 2025-08-14
+
+### 🔧 Fixed
+
+#### Simplified RBAC Cache Strategy
+
+- **Streamlined Configuration**: Removed legacy cache configuration options to eliminate confusion
+  - **Removed**: `cache_store`, `cache_options`, and `cache_write_enabled` (deprecated in favor of dedicated RBAC cache stores)
+  - **Required**: When `rbac_enabled: true`, both `rbac_cache_store` and `permissions_cache_store` must be explicitly configured
+  - **Simplified**: Consistent naming with `rbac_cache_store_options` and `permissions_cache_store_options`
+
+#### Cache Store Validation
+
+- **Mandatory Configuration**: RBAC cache stores are now required when RBAC is enabled
+  - Prevents runtime errors from missing cache configuration
+  - Provides clear error messages during initialization: "rbac_cache_store and permissions_cache_store are required when RBAC is enabled"
+  - Ensures production deployments are properly configured for performance
+
+#### Code Cleanup
+
+- **Removed Complexity**: Eliminated dual cache mode logic and fallback mechanisms
+  - Simplified `RbacManager#setup_cache_adapters` method
+  - Removed conditional cache write logic that added complexity
+  - Cleaner permission checking flow with consistent cache behavior
+
+#### Developer Experience
+
+- **Clear Configuration**: Explicit cache store requirements eliminate guesswork
+- **Better Error Messages**: Configuration validation happens at startup, not at runtime
+- **Consistent Naming**: Standardized cache option parameter names across all adapters
+
+### 🏗️ Technical Details
+
+#### Breaking Changes (Minor - Configuration Only)
+
+- **Removed Configuration Options**:
+  - `cache_store` → Use `rbac_cache_store` and `permissions_cache_store` instead
+  - `cache_options` → Use `rbac_cache_store_options` and `permissions_cache_store_options` instead
+  - `cache_write_enabled` → Cache writing is now always enabled when RBAC is active
+
+#### Migration Guide
+
+**Before (v1.1.0):**
+```ruby
+use RackJwtAegis::Middleware, {
+  jwt_secret: ENV['JWT_SECRET'],
+  rbac_enabled: true,
+  cache_store: :redis,
+  cache_options: { url: ENV['REDIS_URL'] },
+  cache_write_enabled: true
+}
+```
+
+**After (v1.1.1):**
+```ruby
+use RackJwtAegis::Middleware, {
+  jwt_secret: ENV['JWT_SECRET'],
+  rbac_enabled: true,
+  rbac_cache_store: :redis,
+  rbac_cache_store_options: { url: ENV['REDIS_URL'] },
+  permissions_cache_store: :redis,
+  permissions_cache_store_options: { url: ENV['REDIS_URL'] }
+}
+```
+
+#### Benefits
+
+- **🚀 Simpler Configuration**: No more dual cache modes or conditional logic
+- **🛡️ Fail-Fast Validation**: Configuration errors caught at startup
+- **📈 Better Performance**: Dedicated cache stores optimized for their specific use cases
+- **🧹 Cleaner Code**: Reduced complexity in cache management logic
+
+---
+
 ## [1.1.0] - 2025-08-14
 
 ### 🚀 Added
@@ -71,11 +145,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Developer Experience
 
 - **Better Error Messages**: Clear configuration error descriptions
+
 ```ruby
 # Example error message:
-"RBAC permissions must be a Hash with role-id keys, not Array. 
+"RBAC permissions must be a Hash with role-id keys, not Array.
 Expected format: {\"role-id\": [\"resource:method\", ...]}, but got: Array"
 ```
+
 - **Migration Support**: Catches common mistakes when upgrading cache format
 - **Improved Documentation**: Cleaner YARD output with better Markdown rendering
 
@@ -96,6 +172,7 @@ Expected format: {\"role-id\": [\"resource:method\", ...]}, but got: Array"
 #### Updating RBAC Cache Format
 
 **Before (v1.0.x):**
+
 ```ruby
 Rails.cache.write("permissions", {
   'last_update' => Time.now.to_i,
@@ -107,6 +184,7 @@ Rails.cache.write("permissions", {
 ```
 
 **After (v1.1.0+):**
+
 ```ruby
 Rails.cache.write("permissions", {
   'last_update' => Time.now.to_i,
@@ -294,8 +372,8 @@ use RackJwtAegis::Middleware, {
   pathname_slug_pattern: /^\/api\/v1\/([^\/]+)\//,
   rbac_enabled: true,
   rbac_cache_store: :redis,
-  permission_cache_store: :memory,
-  user_permissions_ttl: 300,
+  permissions_cache_store: :memory,
+  cached_permissions_ttl: 300,
   cache_write_enabled: true,
   skip_paths: [/^\/health/, /^\/metrics/, /^\/api\/public/],
   custom_payload_validation: ->(payload) { payload['active'] == true },
@@ -369,6 +447,7 @@ This 1.0.0 release represents a production-ready JWT authentication middleware w
 
 **Deprecations**: None (initial release).
 
+[1.1.1]: https://github.com/kanutocd/rack_jwt_aegis/releases/tag/v1.1.1
 [1.1.0]: https://github.com/kanutocd/rack_jwt_aegis/releases/tag/v1.1.0
 [1.0.2]: https://github.com/kanutocd/rack_jwt_aegis/releases/tag/v1.0.2
 [1.0.1]: https://github.com/kanutocd/rack_jwt_aegis/releases/tag/v1.0.1
