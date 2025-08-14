@@ -5,6 +5,126 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2025-08-14
+
+### 🚀 Added
+
+#### Enhanced RBAC Cache Format
+
+- **Improved Performance**: Changed RBAC cache format from array-based to flat object structure for O(1) role lookup
+  - **Before**: `"permissions": [{ "role-id": ["resource:method"] }]` (O(n) array iteration)
+  - **After**: `"permissions": { "role-id": ["resource:method"] }` (O(1) direct access)
+- **Developer Experience**: Enhanced error detection with descriptive ConfigurationError exceptions
+  - Catches common migration mistakes when upgrading from array to object format
+  - Provides clear error messages with expected format examples
+  - Helps developers quickly identify and fix RBAC configuration issues
+
+#### Documentation Improvements
+
+- **Clean Documentation**: Fixed YARD documentation rendering issues with improved Markdown processing
+  - Added Redcarpet gem for better Markdown parsing in YARD
+  - Removed complex Jekyll integration that was causing rendering issues
+  - Maintained YARD for comprehensive API documentation with cleaner output
+- **API Documentation**: Enhanced code comments for better YARD rendering
+  - Updated key method documentation with clearer parameter descriptions
+  - Improved examples and usage patterns in documentation
+  - Better integration with YARD's HTML generation
+
+### 🔧 Fixed
+
+#### RBAC System Improvements
+
+- **Cache Format Validation**: Added explicit validation for RBAC permissions format
+  - Raises `ConfigurationError` when permissions is not a Hash
+  - Provides helpful error messages for developers
+  - Maintains backward compatibility for other validation scenarios
+- **Role Lookup Logic**: Optimized role permission checking with direct hash access
+  - Eliminated unnecessary array iteration in permission validation
+  - Improved performance for applications with many roles
+  - Maintains support for both string and integer role keys
+
+#### Bug Fixes
+
+- **Test Coverage**: Fixed `test_check_rbac_format?` test that was using old array format
+- **Key Resolution**: Fixed JWT payload key resolution bug in `rbac_last_update_timestamp` method
+- **Validation Logic**: Updated all validation tests to use new flat object format
+
+### 🏗️ Technical Details
+
+#### Architecture Changes
+
+- **RBAC Manager**: Updated `validate_rbac_cache_format` and `check_rbac_format?` methods
+  - Direct hash lookup: `permissions_data[role_id]` instead of array iteration
+  - Improved error handling with specific ConfigurationError exceptions
+  - Enhanced validation with clear developer feedback
+- **Exception Handling**: Re-raises ConfigurationError while preserving other error handling
+  - Developer errors bubble up for immediate attention
+  - Runtime errors (cache issues) are still handled gracefully
+  - Maintains existing debug logging for troubleshooting
+
+#### Performance Improvements
+
+- **O(1) Role Lookup**: Direct hash access for role permissions
+- **Reduced Memory**: Eliminated nested array structures
+- **Faster Validation**: Simplified permission checking logic
+
+#### Developer Experience
+
+- **Better Error Messages**: Clear configuration error descriptions
+```ruby
+# Example error message:
+"RBAC permissions must be a Hash with role-id keys, not Array. 
+Expected format: {\"role-id\": [\"resource:method\", ...]}, but got: Array"
+```
+- **Migration Support**: Catches common mistakes when upgrading cache format
+- **Improved Documentation**: Cleaner YARD output with better Markdown rendering
+
+### 📚 Documentation Updates
+
+- **README.md**: Updated RBAC cache format examples and specifications
+- **YARD Integration**: Fixed documentation rendering with Redcarpet Markdown processor
+- **Code Examples**: Updated all examples to use new flat object format
+
+### 🧪 Testing
+
+- **Test Coverage Maintained**: All tests updated to use new cache format
+- **Enhanced Validation**: Added tests for new configuration error scenarios
+- **Comprehensive Coverage**: Validated migration scenarios and edge cases
+
+### ⚠️ Migration Guide
+
+#### Updating RBAC Cache Format
+
+**Before (v1.0.x):**
+```ruby
+Rails.cache.write("permissions", {
+  'last_update' => Time.now.to_i,
+  'permissions' => [
+    { '123' => ['sales/invoices:get', 'sales/invoices:post'] },
+    { '456' => ['admin/*:*'] }
+  ]
+})
+```
+
+**After (v1.1.0+):**
+```ruby
+Rails.cache.write("permissions", {
+  'last_update' => Time.now.to_i,
+  'permissions' => {
+    '123' => ['sales/invoices:get', 'sales/invoices:post'],
+    '456' => ['admin/*:*']
+  }
+})
+```
+
+#### Benefits of Migration
+
+- **🚀 Better Performance**: O(1) role lookup instead of O(n) iteration
+- **🛠️ Easier Management**: Direct role access for permission updates
+- **📝 Cleaner Code**: Simpler data structure that's easier to understand and maintain
+
+---
+
 ## [1.0.2] - 2025-08-13
 
 ### 🔧 Fixed
@@ -249,5 +369,7 @@ This 1.0.0 release represents a production-ready JWT authentication middleware w
 
 **Deprecations**: None (initial release).
 
+[1.1.0]: https://github.com/kanutocd/rack_jwt_aegis/releases/tag/v1.1.0
+[1.0.2]: https://github.com/kanutocd/rack_jwt_aegis/releases/tag/v1.0.2
 [1.0.1]: https://github.com/kanutocd/rack_jwt_aegis/releases/tag/v1.0.1
 [1.0.0]: https://github.com/kanutocd/rack_jwt_aegis/releases/tag/v1.0.0
