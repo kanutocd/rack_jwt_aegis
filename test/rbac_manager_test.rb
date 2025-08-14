@@ -127,9 +127,9 @@ class RbacManagerTest < Minitest::Test
     rbac_cache = @manager.instance_variable_get(:@rbac_cache)
     rbac_data = {
       'last_update' => Time.now.to_i,
-      'permissions' => [
-        { '123' => ['users:get'] },
-      ],
+      'permissions' => {
+        '123' => ['users:get'],
+      },
     }
     rbac_cache.write('permissions', rbac_data)
 
@@ -163,9 +163,9 @@ class RbacManagerTest < Minitest::Test
     rbac_cache = manager.instance_variable_get(:@rbac_cache)
     rbac_data = {
       'last_update' => Time.now.to_i,
-      'permissions' => [
-        { '123' => ['users:get'] },
-      ],
+      'permissions' => {
+        '123' => ['users:get'],
+      },
     }
     rbac_cache.write('permissions', rbac_data)
 
@@ -191,54 +191,62 @@ class RbacManagerTest < Minitest::Test
     # Test missing required fields
     refute manager.send(:validate_rbac_cache_format, {})
     refute manager.send(:validate_rbac_cache_format, { 'last_update' => 123 })
-    refute manager.send(:validate_rbac_cache_format, { 'permissions' => [] })
+    refute manager.send(:validate_rbac_cache_format, { 'permissions' => {} })
 
-    # Test invalid permissions structure
-    refute manager.send(:validate_rbac_cache_format, {
-      'last_update' => 123,
-      'permissions' => 'not-an-array',
-    })
+    # Test invalid permissions structure - should raise exception
+    error = assert_raises(RackJwtAegis::ConfigurationError) do
+      manager.send(:validate_rbac_cache_format, {
+        'last_update' => 123,
+        'permissions' => 'not-a-hash',
+      })
+    end
+    assert_match(/RBAC permissions must be a Hash/, error.message)
+    assert_match(/Expected format/, error.message)
 
-    # Test empty permissions array is valid
+    # Test array permissions structure (common mistake) - should raise exception
+    array_error = assert_raises(RackJwtAegis::ConfigurationError) do
+      manager.send(:validate_rbac_cache_format, {
+        'last_update' => 123,
+        'permissions' => [{ '123' => ['users:get'] }], # Old array format
+      })
+    end
+    assert_match(/RBAC permissions must be a Hash/, array_error.message)
+    assert_match(/not Array/, array_error.message)
+
+    # Test empty permissions object is valid
     assert manager.send(:validate_rbac_cache_format, {
       'last_update' => 123,
-      'permissions' => [],
+      'permissions' => {},
     })
 
-    # Test invalid permission entry (not a hash)
+    # Test invalid permission value (not an array)
     refute manager.send(:validate_rbac_cache_format, {
       'last_update' => 123,
-      'permissions' => ['not-a-hash'],
+      'permissions' => { '123' => 'not-an-array' },
     })
 
-    # Test empty permission entry (should be invalid)
+    # Test invalid permission string (missing colon)
     refute manager.send(:validate_rbac_cache_format, {
       'last_update' => 123,
-      'permissions' => [{}],
+      'permissions' => { '123' => ['invalid-permission-format'] },
     })
 
-    # Test invalid permission values (not array)
+    # Test invalid permission string (not string)
     refute manager.send(:validate_rbac_cache_format, {
       'last_update' => 123,
-      'permissions' => [{ '123' => 'not-an-array' }],
+      'permissions' => { '123' => [123] },
     })
 
-    # Test invalid permission format (missing colon)
-    refute manager.send(:validate_rbac_cache_format, {
+    # Test valid format
+    assert manager.send(:validate_rbac_cache_format, {
       'last_update' => 123,
-      'permissions' => [{ '123' => ['invalid-permission-format'] }],
-    })
-
-    # Test invalid permission format (not string)
-    refute manager.send(:validate_rbac_cache_format, {
-      'last_update' => 123,
-      'permissions' => [{ '123' => [123] }],
+      'permissions' => { '123' => ['users:get'] },
     })
 
     # Test valid format with symbol keys
     assert manager.send(:validate_rbac_cache_format, {
       last_update: 123,
-      permissions: [{ '123' => ['users:get'] }],
+      permissions: { '123' => ['users:get'] },
     })
   end
 
@@ -333,7 +341,7 @@ class RbacManagerTest < Minitest::Test
 
     # Create a malformed object that will cause an exception during validation
     # Instead of stubbing is_a?, let's stub a method that's actually called in the validation
-    malformed_data = { 'last_update' => 123, 'permissions' => [] }
+    malformed_data = { 'last_update' => 123, 'permissions' => {} }
     malformed_data.stubs(:key?).raises(StandardError.new('Validation error'))
 
     # Should capture the warning and return false
@@ -361,9 +369,9 @@ class RbacManagerTest < Minitest::Test
     rbac_cache = manager.instance_variable_get(:@rbac_cache)
     rbac_data = {
       'last_update' => Time.now.to_i,
-      'permissions' => [
-        { '123' => ['users:get'] },
-      ],
+      'permissions' => {
+        '123' => ['users:get'],
+      },
     }
     rbac_cache.write('permissions', rbac_data)
 
@@ -451,7 +459,7 @@ class RbacManagerTest < Minitest::Test
     rbac_cache = @manager.instance_variable_get(:@rbac_cache)
 
     # Test with missing last_update field
-    rbac_cache.write('permissions', { 'permissions' => [] })
+    rbac_cache.write('permissions', { 'permissions' => {} })
 
     result = @manager.send(:rbac_last_update_timestamp)
 
@@ -491,9 +499,9 @@ class RbacManagerTest < Minitest::Test
     # Setup RBAC data with integer role keys
     rbac_data = {
       'last_update' => Time.now.to_i,
-      'permissions' => [
-        { 123 => ['users:get'] }, # Integer key instead of string
-      ],
+      'permissions' => {
+        123 => ['users:get'], # Integer key instead of string
+      },
     }
 
     result = @manager.send(:check_rbac_format?, 123, @request, rbac_data)

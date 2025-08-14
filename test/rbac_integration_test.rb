@@ -24,15 +24,13 @@ class RbacIntegrationTest < Minitest::Test
     rbac_cache = rbac_manager.instance_variable_get(:@rbac_cache)
 
     # Cache the RBAC permissions in the format specified by the user:
-    # {last_update: 1234567890, permissions: [{role-id: ["sales/invoices:get", ...]}]}
+    # {last_update: 1234567890, permissions: {"role-id": ["sales/invoices:get", ...]}}
     rbac_data = {
       'last_update' => Time.now.to_i,
-      'permissions' => [
-        {
-          '1' => ['sales/invoices:get', 'sales/invoices:post'], # Role ID 1
-          '2' => ['%r{.*}:*'], # Role ID 2 (super admin - any resource, any method)
-        },
-      ],
+      'permissions' => {
+        '1' => ['sales/invoices:get', 'sales/invoices:post'], # Role ID 1
+        '2' => ['%r{.*}:*'], # Role ID 2 (super admin - any resource, any method)
+      },
     }
 
     rbac_cache.write('permissions', rbac_data)
@@ -109,7 +107,7 @@ class RbacIntegrationTest < Minitest::Test
     rbac_cache = rbac_manager.instance_variable_get(:@rbac_cache)
     rbac_data = {
       'last_update' => Time.now.to_i,
-      'permissions' => [{ '1' => ['sales/invoices:get'] }],
+      'permissions' => { '1' => ['sales/invoices:get'] },
     }
     rbac_cache.write('permissions', rbac_data)
 

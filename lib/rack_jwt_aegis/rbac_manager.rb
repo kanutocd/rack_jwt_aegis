@@ -178,22 +178,23 @@ module RackJwtAegis
         return false
       end
 
-      # Check permissions for each user role
-      rbac_data['permissions'].each do |role_permissions|
-        user_roles.each do |role_id|
-          next unless role_permissions.key?(role_id.to_s) || role_permissions.key?(role_id.to_i)
+      # Get permissions object for direct lookup
+      permissions_data = rbac_data['permissions'] || rbac_data[:permissions]
 
-          permissions = role_permissions[role_id.to_s] || role_permissions[role_id.to_i]
-          matched_permission = find_matching_permission(permissions, request)
+      # Check permissions for each user role using direct lookup
+      user_roles.each do |role_id|
+        # Try both string and integer keys for role lookup
+        role_permissions = permissions_data[role_id.to_s] || permissions_data[role_id.to_i]
+        next unless role_permissions
 
-          next unless matched_permission
+        matched_permission = find_matching_permission(role_permissions, request)
+        next unless matched_permission
 
-          # Cache this specific permission match for faster future lookups
-          if @permission_cache && @config.cache_write_enabled?
-            cache_permission_match(user_id, request, role_id, matched_permission)
-          end
-          return true
+        # Cache this specific permission match for faster future lookups
+        if @permission_cache && @config.cache_write_enabled?
+          cache_permission_match(user_id, request, role_id, matched_permission)
         end
+        return true
       end
 
       false
@@ -390,9 +391,9 @@ module RackJwtAegis
     # Expected format:
     # {
     #   last_update: timestamp,
-    #   permissions: [
-    #     {role-id: ["{resource-endpoint}:{http-method}"]}
-    #   ]
+    #   permissions: {
+    #     "role-id": ["{resource-endpoint}:{http-method}"]
+    #   }
     # }
     def validate_rbac_cache_format(rbac_data)
       return false unless rbac_data.is_a?(Hash)
@@ -401,31 +402,35 @@ module RackJwtAegis
       return false unless rbac_data.key?('last_update') || rbac_data.key?(:last_update)
       return false unless rbac_data.key?('permissions') || rbac_data.key?(:permissions)
 
-      # Get permissions array
+      # Get permissions object (now expecting a Hash, not Array)
       permissions = rbac_data['permissions'] || rbac_data[:permissions]
-      return false unless permissions.is_a?(Array)
 
-      # Validate each permission entry
-      permissions.each do |permission_entry|
-        return false unless permission_entry.is_a?(Hash)
+      # If permissions is present but not a Hash, raise an exception to help developers
+      if !permissions.nil? && !permissions.is_a?(Hash)
+        raise ConfigurationError, "RBAC permissions must be a Hash with role-id keys, not #{permissions.class}. " \
+                                  "Expected format: {\"role-id\": [\"resource:method\", ...]}, " \
+                                  "but got: #{permissions.class}"
+      end
 
-        # Each entry should have at least one role-id key
-        return false if permission_entry.empty?
+      # Return false if permissions is nil (should not happen given the key check above, but defensive)
+      return false if permissions.nil?
 
-        # Validate permission values are arrays of strings
-        permission_entry.each_value do |role_permissions|
-          return false unless role_permissions.is_a?(Array)
+      # Validate each role's permissions
+      permissions.each_value do |role_permissions|
+        return false unless role_permissions.is_a?(Array)
 
-          # Each permission should be a string in format "endpoint:method"
-          role_permissions.each do |permission|
-            return false unless permission.is_a?(String)
-            # Permission must include ':' (resource:method format)
-            return false unless permission.include?(':')
-          end
+        # Each permission should be a string in format "endpoint:method"
+        role_permissions.each do |permission|
+          return false unless permission.is_a?(String)
+          # Permission must include ':' (resource:method format) or '*' (wildcard)
+          return false unless permission.include?(':') || permission.include?('*')
         end
       end
 
       true
+    rescue ConfigurationError
+      # Re-raise configuration errors so developers see them
+      raise
     rescue StandardError => e
       debug_log("RbacManager: Cache format validation error: #{e.message}", :warn)
       false

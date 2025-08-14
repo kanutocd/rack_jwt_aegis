@@ -46,9 +46,9 @@ class RbacManagerEnhancedTest < Minitest::Test
     # Setup new RBAC format
     rbac_data = {
       'last_update' => Time.now.to_i,
-      'permissions' => [
-        { '123' => ['sales/invoices:post'] },
-      ],
+      'permissions' => {
+        '123' => ['sales/invoices:post'],
+      },
     }
 
     rbac_cache = @manager.instance_variable_get(:@rbac_cache)
@@ -77,9 +77,9 @@ class RbacManagerEnhancedTest < Minitest::Test
     # Test exact literal matching
     rbac_data = {
       'last_update' => Time.now.to_i,
-      'permissions' => [
-        { '123' => ['sales/invoices:post', 'sales/invoices:get'] },
-      ],
+      'permissions' => {
+        '123' => ['sales/invoices:post', 'sales/invoices:get'],
+      },
     }
 
     rbac_cache = @manager.instance_variable_get(:@rbac_cache)
@@ -104,9 +104,9 @@ class RbacManagerEnhancedTest < Minitest::Test
     # Test regex pattern matching
     rbac_data = {
       'last_update' => Time.now.to_i,
-      'permissions' => [
-        { '456' => ['%r{sales/invoices/\\d+}:get', '%r{sales/invoices/\\d+}:put'] },
-      ],
+      'permissions' => {
+        '456' => ['%r{sales/invoices/\\d+}:get', '%r{sales/invoices/\\d+}:put'],
+      },
     }
 
     rbac_cache = @manager.instance_variable_get(:@rbac_cache)
@@ -142,9 +142,9 @@ class RbacManagerEnhancedTest < Minitest::Test
     # Test wildcard method matching - use exact paths that will be extracted
     rbac_data = {
       'last_update' => Time.now.to_i,
-      'permissions' => [
-        { '789' => ['admin/users:*', 'reports:*'] },
-      ],
+      'permissions' => {
+        '789' => ['admin/users:*', 'reports:*'],
+      },
     }
 
     rbac_cache = @manager.instance_variable_get(:@rbac_cache)
@@ -181,9 +181,9 @@ class RbacManagerEnhancedTest < Minitest::Test
     # Setup RBAC data with recent update (within TTL)
     rbac_data = {
       'last_update' => current_time - 200, # Updated 200s ago, within 300s TTL
-      'permissions' => [
-        { '123' => ['sales/invoices:post'] },
-      ],
+      'permissions' => {
+        '123' => ['sales/invoices:post'],
+      },
     }
     rbac_cache = @manager.instance_variable_get(:@rbac_cache)
     rbac_cache.write('permissions', rbac_data)
@@ -221,9 +221,9 @@ class RbacManagerEnhancedTest < Minitest::Test
     # Setup RBAC data with old update (outside TTL)
     rbac_data = {
       'last_update' => current_time - 500, # Updated 500s ago, outside 300s TTL
-      'permissions' => [
-        { '123' => ['sales/invoices:post'] },
-      ],
+      'permissions' => {
+        '123' => ['sales/invoices:post'],
+      },
     }
     rbac_cache = @manager.instance_variable_get(:@rbac_cache)
     rbac_cache.write('permissions', rbac_data)
@@ -261,9 +261,9 @@ class RbacManagerEnhancedTest < Minitest::Test
     # Test valid format
     valid_rbac = {
       'last_update' => Time.now.to_i,
-      'permissions' => [
-        { '123' => ['sales/invoices:post'] },
-      ],
+      'permissions' => {
+        '123' => ['sales/invoices:post'],
+      },
     }
     rbac_cache.write('permissions', valid_rbac)
 

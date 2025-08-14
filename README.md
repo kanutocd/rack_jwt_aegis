@@ -439,31 +439,28 @@ When RBAC is enabled, the middleware expects permissions to be stored in the cac
 ```json
 {
   "last_update": 1640995200,
-  "permissions": [
-    {
-      "123": [
-        "sales/invoices:get",
-        "sales/invoices:post",
-        "%r{sales/invoices/\\d+}:get",
-        "%r{sales/invoices/\\d+}:put",
-        "users/*:get"
-      ]
-    },
-    {
-      "456": ["admin/*:*", "reports:get"]
-    }
-  ]
+  "permissions": {
+    "123": [
+      "sales/invoices:get",
+      "sales/invoices:post",
+      "%r{sales/invoices/\\d+}:get",
+      "%r{sales/invoices/\\d+}:put",
+      "users/*:get"
+    ],
+    "456": ["admin/*:*", "reports:get"]
+  }
 }
 ```
 
 ### Format Specification
 
 - **last_update**: Timestamp for cache invalidation
-- **permissions**: Array of role permission objects
-- **Role ID**: String or numeric identifier for user roles
-- **Permission Format**: `"resource-endpoint:http-method"`
-  - **resource-endpoint**: API path (literal string or regex pattern)
-  - **http-method**: `get`, `post`, `put`, `delete`, or `*` (wildcard)
+- **permissions**: Object containing direct role-to-permissions mapping:
+  - **Role ID** (key): String or numeric identifier
+  - **Permissions** (value): Array of permission strings
+  - **Permission Format**: `"resource-endpoint:http-method"`
+    - **resource-endpoint**: API path (literal string or regex pattern)
+    - **http-method**: `get`, `post`, `put`, `delete`, or `*` (wildcard)
 
 ### Permission Examples
 
