@@ -19,6 +19,8 @@ module RackJwtAegis
   # @example Advanced usage
   #   use RackJwtAegis::Middleware, {
   #     jwt_secret: ENV['JWT_SECRET'],
+  #     validate_tenant_id: true,
+  #     validate_pathname_slug: true,
   #     validate_subdomain: true,
   #     rbac_enabled: true,
   #     cache_store: :redis,
@@ -142,7 +144,7 @@ module RackJwtAegis
     #
     # @return [Boolean] true if subdomain or pathname slug validation is enabled
     def multi_tenant_enabled?
-      @config.validate_subdomain? || @config.validate_pathname_slug?
+      @config.validate_tenant_id? || @config.validate_subdomain? || @config.validate_pathname_slug?
     end
 
     # Generate a string describing enabled features for logging
@@ -150,8 +152,9 @@ module RackJwtAegis
     # @return [String] comma-separated list of enabled features
     def enabled_features
       features = ['JWT']
+      features << 'TenantId' if @config.validate_tenant_id?
       features << 'Subdomain' if @config.validate_subdomain?
-      features << 'CompanySlug' if @config.validate_pathname_slug?
+      features << 'PathnameSlug' if @config.validate_pathname_slug?
       features << 'RBAC' if @config.rbac_enabled?
       features.join(', ')
     end
