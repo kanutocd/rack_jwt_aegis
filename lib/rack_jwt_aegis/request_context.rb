@@ -100,42 +100,23 @@ module RackJwtAegis
       tenant_id(request.env)
     end
 
-    def self.has_company_access?(env, company_slug)
-      pathname_slugs(env).include?(company_slug)
+    def self.has_pathname_slug_access?(env, pathname_slug)
+      pathname_slugs(env).include?(pathname_slug)
     end
 
     private
 
     def set_user_context(env, payload)
-      user_id_key = @config.payload_key(:user_id).to_s
-      user_id = payload[user_id_key]
-
-      env[USER_ID_KEY] = user_id
+      env[USER_ID_KEY] = payload[@config.payload_key(:user_id).to_s]
     end
 
     def set_tenant_context(env, payload)
-      # Set company group information
-      if @config.validate_subdomain? || @config.payload_mapping.key?(:tenant_id)
-        tenant_id_key = @config.payload_key(:tenant_id).to_s
-        tenant_id = payload[tenant_id_key]
-        env[TENANT_ID_KEY] = tenant_id
-      end
-
-      if @config.validate_subdomain?
-        company_domain_key = @config.payload_key(:subdomain).to_s
-        company_domain = payload[company_domain_key]
-        env[SUBDOMAIN_KEY] = company_domain
-      end
-
-      # Set company slugs for sub-level tenant access
+      # Set multi-tenant information
+      env[TENANT_ID_KEY] = payload[@config.payload_key(:tenant_id).to_s] if @config.validate_tenant_id?
+      env[SUBDOMAIN_KEY] = payload[@config.payload_key(:subdomain).to_s] if @config.validate_subdomain?
       return unless @config.validate_pathname_slug? || @config.payload_mapping.key?(:pathname_slugs)
 
-      pathname_slugs_key = @config.payload_key(:pathname_slugs).to_s
-      pathname_slugs = payload[pathname_slugs_key]
-
-      # Ensure it's an array
-      pathname_slugs = Array(pathname_slugs) if pathname_slugs
-      env[PATHNAME_SLUGS_KEY] = pathname_slugs || []
+      env[PATHNAME_SLUGS_KEY] = Array(payload[@config.payload_key(:pathname_slugs).to_s]).flatten
     end
   end
 end

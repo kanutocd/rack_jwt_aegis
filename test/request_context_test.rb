@@ -5,6 +5,7 @@ require 'test_helper'
 class RequestContextTest < Minitest::Test
   def setup
     @config = RackJwtAegis::Configuration.new(basic_config.merge(
+                                                validate_tenant_id: true,
                                                 validate_subdomain: true,
                                                 validate_pathname_slug: true,
                                               ))
@@ -52,6 +53,7 @@ class RequestContextTest < Minitest::Test
 
   def test_set_context_with_custom_payload_mapping
     config = RackJwtAegis::Configuration.new(basic_config.merge(
+                                               validate_tenant_id: true,
                                                validate_subdomain: true,
                                                validate_pathname_slug: true,
                                                payload_mapping: {
@@ -196,17 +198,17 @@ class RequestContextTest < Minitest::Test
     env = {}
 
     # No slugs set - should return false
-    refute RackJwtAegis::RequestContext.has_company_access?(env, 'acme-widgets')
+    refute RackJwtAegis::RequestContext.has_pathname_slug_access?(env, 'acme-widgets')
 
     # Set some slugs
     env[RackJwtAegis::RequestContext::PATHNAME_SLUGS_KEY] = ['acme-widgets', 'acme-services']
 
     # Should return true for accessible slugs
-    assert RackJwtAegis::RequestContext.has_company_access?(env, 'acme-widgets')
-    assert RackJwtAegis::RequestContext.has_company_access?(env, 'acme-services')
+    assert RackJwtAegis::RequestContext.has_pathname_slug_access?(env, 'acme-widgets')
+    assert RackJwtAegis::RequestContext.has_pathname_slug_access?(env, 'acme-services')
 
     # Should return false for non-accessible slugs
-    refute RackJwtAegis::RequestContext.has_company_access?(env, 'unauthorized-company')
+    refute RackJwtAegis::RequestContext.has_pathname_slug_access?(env, 'unauthorized-company')
   end
 
   def test_set_tenant_context_subdomain_disabled
@@ -257,6 +259,7 @@ class RequestContextTest < Minitest::Test
 
   def test_set_tenant_context_with_payload_mapping_but_no_validation
     config = RackJwtAegis::Configuration.new(basic_config.merge(
+                                               validate_tenant_id: true,
                                                validate_subdomain: false,
                                                validate_pathname_slug: false,
                                                payload_mapping: {
@@ -297,7 +300,7 @@ class RequestContextTest < Minitest::Test
     assert_equal payload, RackJwtAegis::RequestContext.payload(request.env)
     assert_equal 999, RackJwtAegis::RequestContext.current_user_id(request)
     assert_equal 111, RackJwtAegis::RequestContext.current_tenant_id(request)
-    assert RackJwtAegis::RequestContext.has_company_access?(request.env, 'test-company')
-    refute RackJwtAegis::RequestContext.has_company_access?(request.env, 'unauthorized')
+    assert RackJwtAegis::RequestContext.has_pathname_slug_access?(request.env, 'test-company')
+    refute RackJwtAegis::RequestContext.has_pathname_slug_access?(request.env, 'unauthorized')
   end
 end
