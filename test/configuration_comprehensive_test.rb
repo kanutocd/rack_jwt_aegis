@@ -227,21 +227,6 @@ class ConfigurationComprehensiveTest < Minitest::Test
     assert_equal custom_response, config.forbidden_response
   end
 
-  def test_cache_write_enabled_default
-    config = RackJwtAegis::Configuration.new(jwt_secret: 'test')
-
-    refute_predicate config, :cache_write_enabled?
-  end
-
-  def test_cache_write_enabled_true
-    config = RackJwtAegis::Configuration.new(
-      jwt_secret: 'test',
-      cache_write_enabled: true,
-    )
-
-    assert_predicate config, :cache_write_enabled?
-  end
-
   def test_rbac_enabled_predicate_methods
     config = RackJwtAegis::Configuration.new(
       jwt_secret: 'test',
@@ -264,20 +249,16 @@ class ConfigurationComprehensiveTest < Minitest::Test
   def test_cache_configuration_getters
     config = RackJwtAegis::Configuration.new(
       jwt_secret: 'test',
-      cache_store: :redis,
-      cache_options: { host: 'localhost' },
       rbac_cache_store: :memory,
-      rbac_cache_options: { size: 1000 },
-      permission_cache_store: :memcached,
-      permission_cache_options: { servers: ['localhost:11211'] },
+      rbac_cache_store_options: { size: 1000 },
+      permissions_cache_store: :memcached,
+      permissions_cache_store_options: { servers: ['localhost:11211'] },
     )
 
-    assert_equal :redis, config.cache_store
-    assert_equal({ host: 'localhost' }, config.cache_options)
     assert_equal :memory, config.rbac_cache_store
-    assert_equal({ size: 1000 }, config.rbac_cache_options)
-    assert_equal :memcached, config.permission_cache_store
-    assert_equal({ servers: ['localhost:11211'] }, config.permission_cache_options)
+    assert_equal({ size: 1000 }, config.rbac_cache_store_options)
+    assert_equal :memcached, config.permissions_cache_store
+    assert_equal({ servers: ['localhost:11211'] }, config.permissions_cache_store_options)
   end
 
   def test_custom_payload_validator_getter
@@ -326,8 +307,6 @@ class ConfigurationComprehensiveTest < Minitest::Test
       validate_subdomain: true,
       validate_pathname_slug: true,
       rbac_enabled: true,
-      cache_store: :memory,
-      cache_write_enabled: true,
       payload_mapping: {
         subdomain: :domain,
         pathname_slugs: :companies,
@@ -340,35 +319,28 @@ class ConfigurationComprehensiveTest < Minitest::Test
     assert_predicate config, :validate_subdomain?
     assert_predicate config, :validate_pathname_slug?
     assert_predicate config, :rbac_enabled?
-    assert_predicate config, :cache_write_enabled?
   end
 
-  def test_rbac_cache_store_required_when_cache_write_disabled
-    # Test line 303: rbac_cache_store.nil? check in zero trust mode
+  def test_rbac_cache_store_required_when_rbac_is_enabled
     error = assert_raises(RackJwtAegis::ConfigurationError) do
       RackJwtAegis::Configuration.new(
         jwt_secret: 'test-secret',
         rbac_enabled: true,
-        cache_store: :memory,
-        cache_write_enabled: false,
-        rbac_cache_store: nil, # This should trigger line 303
+        rbac_cache_store: nil,
       )
     end
-    assert_equal 'rbac_cache_store is required when cache_write_enabled is false', error.message
+    assert_equal 'rbac_cache_store and permissions_cache_store are required when RBAC is enabled', error.message
   end
 
-  def test_permission_cache_store_defaults_to_memory_when_cache_write_disabled
-    # Test lines 307-308: permission_cache_store.nil? check and default assignment
-    config = RackJwtAegis::Configuration.new(
-      jwt_secret: 'test-secret',
-      rbac_enabled: true,
-      cache_store: :redis,
-      cache_write_enabled: false,
-      rbac_cache_store: :memory,
-      permission_cache_store: nil, # This should trigger lines 307-308
-    )
+  def test_permissions_cache_store_required_when_rbac_is_enabled
+    error = assert_raises(RackJwtAegis::ConfigurationError) do
+      RackJwtAegis::Configuration.new(
+        jwt_secret: 'test-secret',
+        rbac_enabled: true,
+        permissions_cache_store: nil,
+      )
+    end
 
-    # permission_cache_store should default to :memory when nil in zero trust mode
-    assert_equal :memory, config.permission_cache_store
+    assert_equal 'rbac_cache_store and permissions_cache_store are required when RBAC is enabled', error.message
   end
 end

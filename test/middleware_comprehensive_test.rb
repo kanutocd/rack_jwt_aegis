@@ -477,7 +477,6 @@ class MiddlewareComprehensiveTest < Minitest::Test
       jwt_secret: 'test-secret',
       rbac_enabled: true,
       rbac_cache_store: :memory,
-      cache_write_enabled: true,
       payload_mapping: { role_ids: :roles },
     }
     middleware = RackJwtAegis::Middleware.new(@app, config)

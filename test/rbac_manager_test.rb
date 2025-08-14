@@ -4,46 +4,31 @@ require 'test_helper'
 
 class RbacManagerTest < Minitest::Test
   def setup
-    @config = RackJwtAegis::Configuration.new(basic_config.merge(
-                                                cache_store: :memory,
-                                                cache_write_enabled: true,
-                                              ))
+    @config = RackJwtAegis::Configuration.new(basic_config.merge(rbac_enabled: true))
     @manager = RackJwtAegis::RbacManager.new(@config)
     @request = rack_request(method: 'GET', path: '/api/users')
-  end
-
-  def test_initialize_with_shared_cache
-    config = RackJwtAegis::Configuration.new(
-      jwt_secret: 'secret',
-      cache_store: :memory,
-      cache_write_enabled: true,
-    )
-
-    manager = RackJwtAegis::RbacManager.new(config)
-    rbac_cache = manager.instance_variable_get(:@rbac_cache)
-    permission_cache = manager.instance_variable_get(:@permission_cache)
-
-    assert_same rbac_cache, permission_cache
   end
 
   def test_initialize_with_separate_caches
     config = RackJwtAegis::Configuration.new(
       jwt_secret: 'secret',
+      rbac_enabled: true,
       rbac_cache_store: :memory,
-      permission_cache_store: :memory,
+      permissions_cache_store: :memory,
     )
 
     manager = RackJwtAegis::RbacManager.new(config)
     rbac_cache = manager.instance_variable_get(:@rbac_cache)
-    permission_cache = manager.instance_variable_get(:@permission_cache)
+    permission_cache = manager.instance_variable_get(:@permissions_cache)
 
     refute_same rbac_cache, permission_cache
     assert_instance_of RackJwtAegis::MemoryAdapter, rbac_cache
     assert_instance_of RackJwtAegis::MemoryAdapter, permission_cache
   end
 
-  def test_initialize_without_rbac_cache
-    config = RackJwtAegis::Configuration.new(jwt_secret: 'secret')
+  def test_initialize_without_rbac_cache_store
+    config = RackJwtAegis::Configuration.new(jwt_secret: 'secret', rbac_enabled: true)
+    config.rbac_cache_store = nil
 
     error = assert_raises(RackJwtAegis::ConfigurationError) do
       RackJwtAegis::RbacManager.new(config)
@@ -66,7 +51,7 @@ class RbacManagerTest < Minitest::Test
     current_time = Time.now.to_i
 
     # Mock cached permission in new format
-    permission_cache = @manager.instance_variable_get(:@permission_cache)
+    permission_cache = @manager.instance_variable_get(:@permissions_cache)
     user_permissions = { permission_key => current_time }
     permission_cache.write('user_permissions', user_permissions)
 
@@ -89,8 +74,7 @@ class RbacManagerTest < Minitest::Test
   def test_skip_test_authorize_rbac_cache_error
     # Use a manager with debug mode enabled from start
     config = RackJwtAegis::Configuration.new(basic_config.merge(
-                                               cache_store: :memory,
-                                               cache_write_enabled: true,
+                                               rbac_enabled: true,
                                                debug_mode: true,
                                              ))
     manager = RackJwtAegis::RbacManager.new(config)
@@ -98,7 +82,7 @@ class RbacManagerTest < Minitest::Test
     payload = valid_jwt_payload
 
     # Mock permission cache to return empty (no cached permission)
-    permission_cache = manager.instance_variable_get(:@permission_cache)
+    permission_cache = manager.instance_variable_get(:@permissions_cache)
     permission_cache.expects(:read).with('user_permissions').returns({})
 
     # Mock RBAC cache to throw error when checking permissions (called twice - once in rbac_last_update_timestamp, once in check_rbac_permission)
@@ -119,7 +103,7 @@ class RbacManagerTest < Minitest::Test
     permission_key = @manager.send(:build_permission_key, 123, @request)
 
     # Mock invalid cached entry in user_permissions
-    permission_cache = @manager.instance_variable_get(:@permission_cache)
+    permission_cache = @manager.instance_variable_get(:@permissions_cache)
     user_permissions = { permission_key => 'invalid_format' } # Should be integer timestamp
     permission_cache.write('user_permissions', user_permissions)
 
@@ -144,39 +128,6 @@ class RbacManagerTest < Minitest::Test
     cached_timestamp = updated_permissions[permission_key]
 
     assert_kind_of Integer, cached_timestamp, 'Invalid entry should be replaced with valid timestamp'
-  end
-
-  def test_cache_write_disabled_mode
-    # Test mode where cache_write_enabled is false
-    config = RackJwtAegis::Configuration.new(
-      jwt_secret: 'secret',
-      rbac_cache_store: :memory,
-      permission_cache_store: nil,
-      cache_write_enabled: false,
-    )
-    manager = RackJwtAegis::RbacManager.new(config)
-
-    payload = valid_jwt_payload
-    @request.env['rack_jwt_aegis.user_roles'] = ['123']
-
-    # Setup RBAC data
-    rbac_cache = manager.instance_variable_get(:@rbac_cache)
-    rbac_data = {
-      'last_update' => Time.now.to_i,
-      'permissions' => {
-        '123' => ['users:get'],
-      },
-    }
-    rbac_cache.write('permissions', rbac_data)
-
-    # Should authorize but not cache the result
-    manager.authorize(@request, payload)
-
-    # Verify permission was not cached since cache_write_enabled is false and permission_cache_store is not set
-    permission_cache = manager.instance_variable_get(:@permission_cache)
-    user_permissions = permission_cache&.read('user_permissions')
-
-    assert_nil user_permissions
   end
 
   def test_rbac_format_validation_edge_cases
@@ -256,7 +207,7 @@ class RbacManagerTest < Minitest::Test
     # Test that negative permissions are not cached
     @manager.send(:cache_permission_result, permission_key, false)
 
-    permission_cache = @manager.instance_variable_get(:@permission_cache)
+    permission_cache = @manager.instance_variable_get(:@permissions_cache)
     user_permissions = permission_cache.read('user_permissions')
 
     # Should be empty or nil since false permissions are not cached
@@ -272,7 +223,7 @@ class RbacManagerTest < Minitest::Test
   end
 
   def test_remove_stale_permission_edge_cases
-    permission_cache = @manager.instance_variable_get(:@permission_cache)
+    permission_cache = @manager.instance_variable_get(:@permissions_cache)
 
     # Test removing from non-existent cache
     @manager.send(:remove_stale_permission, 'nonexistent:key', 'test reason')
@@ -312,8 +263,7 @@ class RbacManagerTest < Minitest::Test
 
   def test_regex_permission_error_handling
     config_with_debug = RackJwtAegis::Configuration.new(basic_config.merge(
-                                                          cache_store: :memory,
-                                                          cache_write_enabled: true,
+                                                          rbac_enabled: true,
                                                           debug_mode: true,
                                                         ))
     manager = RackJwtAegis::RbacManager.new(config_with_debug)
@@ -333,8 +283,7 @@ class RbacManagerTest < Minitest::Test
 
   def test_validate_rbac_cache_format_with_exception
     config_with_debug = RackJwtAegis::Configuration.new(basic_config.merge(
-                                                          cache_store: :memory,
-                                                          cache_write_enabled: true,
+                                                          rbac_enabled: true,
                                                           debug_mode: true,
                                                         ))
     manager = RackJwtAegis::RbacManager.new(config_with_debug)
@@ -356,8 +305,7 @@ class RbacManagerTest < Minitest::Test
 
   def test_no_user_roles_in_request_context
     config_with_debug = RackJwtAegis::Configuration.new(basic_config.merge(
-                                                          cache_store: :memory,
-                                                          cache_write_enabled: true,
+                                                          rbac_enabled: true,
                                                           debug_mode: true,
                                                         ))
     manager = RackJwtAegis::RbacManager.new(config_with_debug)
@@ -397,24 +345,6 @@ class RbacManagerTest < Minitest::Test
     result = @manager.send(:check_rbac_permission, 123, @request)
 
     refute result
-  end
-
-  def test_cache_permission_match_with_nil_host
-    @request.stubs(:host).returns(nil)
-    @request.stubs(:path).returns('/test/path')
-    @request.stubs(:request_method).returns('GET')
-
-    # Should handle nil host gracefully
-    @manager.send(:cache_permission_match, 123, @request, '456', 'test:get')
-
-    permission_cache = @manager.instance_variable_get(:@permission_cache)
-    user_permissions = permission_cache.read('user_permissions')
-
-    # Should cache with 'localhost' as default host
-    expected_key = '123:localhost/test/path:get'
-
-    assert_kind_of Hash, user_permissions
-    assert user_permissions.key?(expected_key)
   end
 
   def test_extract_api_path_from_request_edge_cases
@@ -475,14 +405,13 @@ class RbacManagerTest < Minitest::Test
 
   def test_remove_stale_permission_with_cache_error
     config_with_debug = RackJwtAegis::Configuration.new(basic_config.merge(
-                                                          cache_store: :memory,
-                                                          cache_write_enabled: true,
+                                                          rbac_enabled: true,
                                                           debug_mode: true,
                                                         ))
     manager = RackJwtAegis::RbacManager.new(config_with_debug)
 
     # Mock permission cache to throw error on read
-    permission_cache = manager.instance_variable_get(:@permission_cache)
+    permission_cache = manager.instance_variable_get(:@permissions_cache)
     permission_cache.stubs(:read).raises(RackJwtAegis::CacheError.new('Read failed'))
 
     # Should capture warning and not raise exception
@@ -522,8 +451,7 @@ class RbacManagerTest < Minitest::Test
   def test_extract_api_path_with_pattern_no_captures
     # Test when pattern matches but has no captures
     config_no_captures = RackJwtAegis::Configuration.new(basic_config.merge(
-                                                           cache_store: :memory,
-                                                           cache_write_enabled: true,
+                                                           rbac_enabled: true,
                                                            pathname_slug_pattern: %r{/api/v1/}, # No capture groups
                                                          ))
     manager = RackJwtAegis::RbacManager.new(config_no_captures)
@@ -537,14 +465,13 @@ class RbacManagerTest < Minitest::Test
 
   def test_nuke_user_permissions_cache_with_cache_error
     config_with_debug = RackJwtAegis::Configuration.new(basic_config.merge(
-                                                          cache_store: :memory,
-                                                          cache_write_enabled: true,
+                                                          rbac_enabled: true,
                                                           debug_mode: true,
                                                         ))
     manager = RackJwtAegis::RbacManager.new(config_with_debug)
 
     # Mock permission cache to throw error on delete
-    permission_cache = manager.instance_variable_get(:@permission_cache)
+    permission_cache = manager.instance_variable_get(:@permissions_cache)
     permission_cache.stubs(:delete).raises(RackJwtAegis::CacheError.new('Delete failed'))
 
     # Should capture warning and not raise exception
@@ -557,14 +484,13 @@ class RbacManagerTest < Minitest::Test
 
   def test_cache_permission_result_with_cache_error
     config_with_debug = RackJwtAegis::Configuration.new(basic_config.merge(
-                                                          cache_store: :memory,
-                                                          cache_write_enabled: true,
+                                                          rbac_enabled: true,
                                                           debug_mode: true,
                                                         ))
     manager = RackJwtAegis::RbacManager.new(config_with_debug)
 
     # Mock permission cache to throw error on write
-    permission_cache = manager.instance_variable_get(:@permission_cache)
+    permission_cache = manager.instance_variable_get(:@permissions_cache)
     permission_cache.stubs(:write).raises(RackJwtAegis::CacheError.new('Write failed'))
 
     # Should capture warning and not raise exception

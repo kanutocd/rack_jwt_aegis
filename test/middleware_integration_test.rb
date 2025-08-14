@@ -135,7 +135,7 @@ class MiddlewareIntegrationTest < Minitest::Test
 
     response = JSON.parse(last_response.body)
 
-    assert_match(/company access denied/i, response['error'])
+    assert_match(/Pathname slug access denied/i, response['error'])
 
     # Try accessing allowed company
     get '/api/v1/widgets-division/data'

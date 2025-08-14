@@ -42,8 +42,6 @@ class RackJwtAegisTest < Minitest::Test
         validate_subdomain: true,
         validate_pathname_slug: true,
         rbac_enabled: true,
-        cache_store: :memory,
-        cache_write_enabled: true,
       ),
     )
 

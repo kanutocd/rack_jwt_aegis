@@ -138,7 +138,7 @@ class MultiTenantValidatorTest < Minitest::Test
     error = assert_raises(RackJwtAegis::AuthorizationError) do
       validator.validate(request, payload)
     end
-    assert_equal 'JWT payload missing or invalid pathname_slugs for company access validation', error.message
+    assert_equal 'JWT payload missing or invalid pathname_slugs for pathname slug access validation', error.message
   end
 
   def test_validate_pathname_slug_invalid_slugs_not_array
@@ -151,7 +151,7 @@ class MultiTenantValidatorTest < Minitest::Test
     error = assert_raises(RackJwtAegis::AuthorizationError) do
       validator.validate(request, payload)
     end
-    assert_equal 'JWT payload missing or invalid pathname_slugs for company access validation', error.message
+    assert_equal 'JWT payload missing or invalid pathname_slugs for pathname slug access validation', error.message
   end
 
   def test_validate_pathname_slug_empty_array
@@ -164,7 +164,7 @@ class MultiTenantValidatorTest < Minitest::Test
     error = assert_raises(RackJwtAegis::AuthorizationError) do
       validator.validate(request, payload)
     end
-    assert_equal 'JWT payload missing or invalid pathname_slugs for company access validation', error.message
+    assert_equal 'JWT payload missing or invalid pathname_slugs for pathname slug access validation', error.message
   end
 
   def test_validate_pathname_slug_access_denied
@@ -177,7 +177,7 @@ class MultiTenantValidatorTest < Minitest::Test
     error = assert_raises(RackJwtAegis::AuthorizationError) do
       validator.validate(request, payload)
     end
-    assert_match(/Company access denied/, error.message)
+    assert_match(/Pathname slug access denied/, error.message)
     assert_match(/unauthorized-company/, error.message)
     assert_match(/\["acme-widgets", "acme-services"\]/, error.message)
   end

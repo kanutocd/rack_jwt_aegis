@@ -34,8 +34,6 @@ require_relative 'rack_jwt_aegis/response_builder'
 #     validate_subdomain: true,
 #     validate_pathname_slug: true,
 #     rbac_enabled: true,
-#     cache_store: :redis,
-#     cache_write_enabled: true
 #   }
 module RackJwtAegis
   # Base error class for all RackJwtAegis exceptions

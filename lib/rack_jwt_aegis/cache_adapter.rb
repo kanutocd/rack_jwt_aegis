@@ -4,13 +4,13 @@ module RackJwtAegis
   class CacheAdapter
     def self.build(store_type, options = {})
       case store_type
-      when :memory
+      when :memory, :memory_store
         MemoryAdapter.new(options)
-      when :redis
+      when :redis, :redis_cache_store
         RedisAdapter.new(options)
-      when :memcached
+      when :memcached, :mem_cache_store
         MemcachedAdapter.new(options)
-      when :solid_cache
+      when :solid_cache, :solid_cache_store
         SolidCacheAdapter.new(options)
       else
         raise ConfigurationError, "Unsupported cache store: #{store_type}"

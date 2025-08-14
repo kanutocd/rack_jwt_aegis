@@ -17,8 +17,6 @@ module RackJwtAegis
   class RbacManager
     include DebugLogger
 
-    CACHE_TTL = 300 # 5 minutes default cache TTL
-
     # Initialize the RBAC manager
     #
     # @param config [Configuration] the configuration instance
@@ -38,21 +36,12 @@ module RackJwtAegis
 
       # Build permission key
       permission_key = build_permission_key(user_id, request)
-
-      # Check cached permission first (if middleware can write to cache)
-      if @permission_cache && @config.cache_write_enabled?
-        cached_permission = check_cached_permission(permission_key)
-        return if cached_permission == true
-
-        raise AuthorizationError, 'Access denied - cached permission' if cached_permission == false
-      end
+      return if check_cached_permission(permission_key) == true
 
       # Permission not cached or cache miss - check RBAC store
       has_permission = check_rbac_permission(user_id, request)
-
       # Cache the result if middleware has write access
       cache_permission_result(permission_key, has_permission)
-
       return if has_permission
 
       raise AuthorizationError, 'Access denied - insufficient permissions'
@@ -61,25 +50,15 @@ module RackJwtAegis
     private
 
     def setup_cache_adapters
-      if @config.cache_write_enabled? && @config.cache_store
-        # Shared cache mode - both RBAC and permission cache use same store
-        @rbac_cache = CacheAdapter.build(@config.cache_store, @config.cache_options || {})
-        @permission_cache = @rbac_cache
-      else
-        # Separate cache mode - different stores for RBAC and permissions
-        if @config.rbac_cache_store
-          @rbac_cache = CacheAdapter.build(@config.rbac_cache_store, @config.rbac_cache_options || {})
-        end
+      return unless @config.rbac_enabled
 
-        if @config.permission_cache_store
-          @permission_cache = CacheAdapter.build(@config.permission_cache_store, @config.permission_cache_options || {})
-        end
+      begin
+        @rbac_cache = CacheAdapter.build(@config.rbac_cache_store, @config.rbac_cache_store_options || {})
+        @permissions_cache = CacheAdapter.build(@config.permissions_cache_store,
+                                                @config.permissions_cache_store_options || {})
+      rescue ConfigurationError
+        raise ConfigurationError, 'RBAC cache store not configured'
       end
-
-      # Ensure we have at least RBAC cache for permission lookups
-      return if @rbac_cache
-
-      raise ConfigurationError, 'RBAC cache store not configured'
     end
 
     def build_permission_key(user_id, request)
@@ -87,11 +66,11 @@ module RackJwtAegis
     end
 
     def check_cached_permission(permission_key)
-      return nil unless @permission_cache
+      return nil unless @permissions_cache
 
       begin
         # Get the cached user permissions
-        user_permissions = @permission_cache.read('user_permissions')
+        user_permissions = @permissions_cache.read('user_permissions')
         return nil if user_permissions.nil? || !user_permissions.is_a?(Hash)
 
         # First check: If RBAC permissions were updated recently, nuke ALL cached permissions
@@ -100,7 +79,7 @@ module RackJwtAegis
           rbac_update_age = Time.now.to_i - rbac_last_update
 
           # If RBAC was updated within the TTL period, all cached permissions are invalid
-          if rbac_update_age <= @config.user_permissions_ttl
+          if rbac_update_age <= @config.cached_permissions_ttl
             nuke_user_permissions_cache("RBAC permissions updated recently (#{rbac_update_age}s ago, within TTL)")
             return nil
           end
@@ -113,10 +92,10 @@ module RackJwtAegis
         permission_age = Time.now.to_i - cached_timestamp
 
         # Second check: TTL expiration
-        if permission_age > @config.user_permissions_ttl
+        if permission_age > @config.cached_permissions_ttl
           # This specific permission expired due to TTL
           remove_stale_permission(permission_key,
-                                  "TTL expired (#{permission_age}s > #{@config.user_permissions_ttl}s)")
+                                  "TTL expired (#{permission_age}s > #{@config.cached_permissions_ttl}s)")
           return nil
         end
 
@@ -148,20 +127,20 @@ module RackJwtAegis
     end
 
     def cache_permission_result(permission_key, has_permission)
-      return unless @permission_cache
+      return unless @permissions_cache
       return unless has_permission # Only cache positive permissions
 
       begin
         current_time = Time.now.to_i
 
         # Get existing user permissions cache or create new one
-        user_permissions = @permission_cache.read('user_permissions') || {}
+        user_permissions = @permissions_cache.read('user_permissions') || {}
 
         # Store permission with new format: {"user_id:full_url:method" => timestamp}
         user_permissions[permission_key] = current_time
 
         # Write back to cache
-        @permission_cache.write('user_permissions', user_permissions, expires_in: CACHE_TTL)
+        @permissions_cache.write('user_permissions', user_permissions, expires_in: @config.cached_permissions_ttl)
 
         debug_log("Cached permission: #{permission_key} => #{current_time}")
       rescue CacheError => e
@@ -191,9 +170,7 @@ module RackJwtAegis
         next unless matched_permission
 
         # Cache this specific permission match for faster future lookups
-        if @permission_cache && @config.cache_write_enabled?
-          cache_permission_match(user_id, request, role_id, matched_permission)
-        end
+        cache_matched_permission(user_id, request)
         return true
       end
 
@@ -219,10 +196,10 @@ module RackJwtAegis
 
     # Remove a specific stale permission
     def remove_stale_permission(permission_key, reason)
-      return unless @permission_cache
+      return unless @permissions_cache
 
       begin
-        user_permissions = @permission_cache.read('user_permissions')
+        user_permissions = @permissions_cache.read('user_permissions')
         return unless user_permissions.is_a?(Hash)
 
         # Remove the specific permission key
@@ -230,11 +207,11 @@ module RackJwtAegis
 
         # If no permissions remain, remove the entire cache
         if user_permissions.empty?
-          @permission_cache.delete('user_permissions')
+          @permissions_cache.delete('user_permissions')
           debug_log("Removed last permission, cleared entire cache: #{reason}")
         else
           # Update the cache with the modified permissions
-          @permission_cache.write('user_permissions', user_permissions, expires_in: CACHE_TTL)
+          @permissions_cache.write('user_permissions', user_permissions, expires_in: @config.cached_permissions_ttl)
           debug_log("Removed stale permission #{permission_key}: #{reason}")
         end
       rescue CacheError => e
@@ -244,10 +221,10 @@ module RackJwtAegis
 
     # Nuke (delete) the entire user permissions cache
     def nuke_user_permissions_cache(reason)
-      return unless @permission_cache
+      return unless @permissions_cache
 
       begin
-        @permission_cache.delete('user_permissions')
+        @permissions_cache.delete('user_permissions')
         debug_log("Nuked user permissions cache: #{reason}")
       rescue CacheError => e
         debug_log("RbacManager cache nuke error: #{e.message}", :warn)
@@ -290,27 +267,18 @@ module RackJwtAegis
 
     # Cache the specific permission match for faster future lookups
     # Format: {"user_id:full_url:method" => timestamp}
-    def cache_permission_match(user_id, request, _role_id, _matched_permission)
-      return unless @permission_cache
+    def cache_matched_permission(user_id, request)
+      return unless @permissions_cache
 
       begin
         current_time = Time.now.to_i
-
-        # Build the permission key in new format
-        host = request.host || 'localhost'
-        full_url = "#{host}#{request.path}"
-        method = request.request_method.downcase
-        permission_key = "#{user_id}:#{full_url}:#{method}"
-
+        permission_key = "#{user_id}:#{request.host}#{request.path}:#{request.request_method.downcase}"
         # Get existing user permissions cache or create new one
-        user_permissions = @permission_cache.read('user_permissions') || {}
-
+        user_permissions = @permissions_cache.read('user_permissions') || {}
         # Store permission with new format
         user_permissions[permission_key] = current_time
-
         # Write back to cache
-        @permission_cache.write('user_permissions', user_permissions, expires_in: CACHE_TTL)
-
+        @permissions_cache.write('user_permissions', user_permissions, expires_in: @config.cached_permissions_ttl)
         debug_log("Cached user permission: #{permission_key} => #{current_time}")
       rescue CacheError => e
         # Log cache error but don't fail the request

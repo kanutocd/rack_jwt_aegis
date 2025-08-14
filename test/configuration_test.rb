@@ -29,10 +29,10 @@ class ConfigurationTest < Minitest::Test
       tenant_id_header_name: 'X-Custom-Header',
       pathname_slug_pattern: %r{^/custom/([^/]+)/},
       skip_paths: ['/health', '/status'],
-      cache_store: :redis,
-      cache_options: { url: 'redis://localhost:6379' },
-      cache_write_enabled: true,
-      user_permissions_ttl: 3600,
+      rbac_cache_store: :redis,
+      rbac_cache_store_options: { url: 'redis://localhost:6379' },
+      permissions_cache_store: :solid_cache,
+      cached_permissions_ttl: 3600,
       custom_payload_validator: ->(_payload, _request) { true },
       unauthorized_response: { error: 'Custom unauthorized' },
       forbidden_response: { error: 'Custom forbidden' },
@@ -47,12 +47,13 @@ class ConfigurationTest < Minitest::Test
     assert_predicate config, :validate_pathname_slug?
     assert_predicate config, :rbac_enabled?
     assert_equal 'X-Custom-Header', config.tenant_id_header_name
-    assert_equal(%r{^/custom/([^/]+)/}, config.pathname_slug_pattern)
+    assert_equal %r{^/custom/([^/]+)/}, config.pathname_slug_pattern
     assert_equal ['/health', '/status'], config.skip_paths
-    assert_equal :redis, config.cache_store
-    assert_equal({ url: 'redis://localhost:6379' }, config.cache_options)
-    assert_predicate config, :cache_write_enabled?
-    assert_equal 3600, config.user_permissions_ttl
+    assert_equal :redis, config.rbac_cache_store
+    assert_equal({ url: 'redis://localhost:6379' }, config.rbac_cache_store_options)
+    assert_equal :solid_cache, config.permissions_cache_store
+    assert_empty(config.permissions_cache_store_options)
+    assert_equal 3600, config.cached_permissions_ttl
     assert_respond_to config.custom_payload_validator, :call
     assert_equal({ error: 'Custom unauthorized' }, config.unauthorized_response)
     assert_equal({ error: 'Custom forbidden' }, config.forbidden_response)
@@ -66,9 +67,13 @@ class ConfigurationTest < Minitest::Test
     assert_equal 'X-Tenant-Id', config.tenant_id_header_name
     assert_equal(%r{^/api/v1/([^/]+)/}, config.pathname_slug_pattern)
     assert_empty config.skip_paths
-    refute_predicate config, :cache_write_enabled?
-    assert_equal 1800, config.user_permissions_ttl # Default 30 minutes
+    refute_predicate config, :rbac_enabled?
+    assert_equal 1800, config.cached_permissions_ttl # Default 30 minutes
     refute_predicate config, :debug_mode?
+    assert_equal :memory, config.rbac_cache_store
+    assert_empty(config.rbac_cache_store_options)
+    assert_equal :memory, config.permissions_cache_store
+    assert_empty(config.permissions_cache_store_options)
 
     expected_payload_mapping = {
       user_id: :user_id,
@@ -249,22 +254,10 @@ class ConfigurationTest < Minitest::Test
       RackJwtAegis::Configuration.new(
         jwt_secret: 'test-secret',
         rbac_enabled: true,
+        permissions_cache_store: nil,
       )
     end
-    assert_match(/cache_store or rbac_cache_store is required when RBAC is enabled/, error.message)
-  end
-
-  def test_rbac_enabled_with_cache_store_and_write_enabled
-    config = RackJwtAegis::Configuration.new(
-      jwt_secret: 'test-secret',
-      rbac_enabled: true,
-      cache_store: :memory,
-      cache_write_enabled: true,
-    )
-
-    assert_predicate config, :rbac_enabled?
-    assert_equal :memory, config.cache_store
-    assert_predicate config, :cache_write_enabled?
+    assert_match(/rbac_cache_store and permissions_cache_store are required when RBAC is enabled/, error.message)
   end
 
   def test_rbac_enabled_without_write_access_requires_separate_caches
@@ -272,11 +265,10 @@ class ConfigurationTest < Minitest::Test
       RackJwtAegis::Configuration.new(
         jwt_secret: 'test-secret',
         rbac_enabled: true,
-        cache_store: :memory,
-        cache_write_enabled: false,
+        rbac_cache_store: nil,
       )
     end
-    assert_match(/rbac_cache_store is required when cache_write_enabled is false/, error.message)
+    assert_match(/rbac_cache_store and permissions_cache_store are required when RBAC is enabled/, error.message)
   end
 
   def test_rbac_enabled_with_separate_caches_zero_trust_mode
@@ -284,14 +276,12 @@ class ConfigurationTest < Minitest::Test
       jwt_secret: 'test-secret',
       rbac_enabled: true,
       rbac_cache_store: :redis,
-      permission_cache_store: :memory,
-      cache_write_enabled: false,
+      permissions_cache_store: :memory,
     )
 
     assert_predicate config, :rbac_enabled?
     assert_equal :redis, config.rbac_cache_store
-    assert_equal :memory, config.permission_cache_store
-    refute_predicate config, :cache_write_enabled?
+    assert_equal :memory, config.permissions_cache_store
   end
 
   def test_rbac_enabled_with_rbac_cache_store_only
@@ -303,7 +293,7 @@ class ConfigurationTest < Minitest::Test
 
     assert_predicate config, :rbac_enabled?
     assert_equal :redis, config.rbac_cache_store
-    assert_equal :memory, config.permission_cache_store # Default fallback
+    assert_equal :memory, config.permissions_cache_store # Default fallback
   end
 
   # Multi-Tenant Settings Validation Tests
@@ -439,16 +429,13 @@ class ConfigurationTest < Minitest::Test
       validate_subdomain: true,
       validate_pathname_slug: false,
       rbac_enabled: true,
-      cache_store: :memory, # Required since rbac_enabled is true
       debug_mode: false,
-      cache_write_enabled: true,
     )
 
     assert_predicate config, :validate_subdomain?
     refute_predicate config, :validate_pathname_slug?
     assert_predicate config, :rbac_enabled?
     refute_predicate config, :debug_mode?
-    assert_predicate config, :cache_write_enabled?
   end
 
   def test_boolean_helper_methods_with_falsy_values
@@ -458,14 +445,12 @@ class ConfigurationTest < Minitest::Test
       validate_pathname_slug: false,
       rbac_enabled: 0,
       debug_mode: '',
-      cache_write_enabled: nil,
     )
 
     refute_predicate config, :validate_subdomain?
     refute_predicate config, :validate_pathname_slug?
     refute_predicate config, :rbac_enabled?
     refute_predicate config, :debug_mode?
-    refute_predicate config, :cache_write_enabled?
   end
 
   def test_boolean_helper_methods_with_a_string_false
@@ -483,16 +468,13 @@ class ConfigurationTest < Minitest::Test
       validate_subdomain: 'yes',
       validate_pathname_slug: 1,
       rbac_enabled: 'true',
-      cache_store: :memory, # Required since rbac_enabled is 'true' (truthy)
       debug_mode: [1],
-      cache_write_enabled: { enabled: true },
     )
 
     assert_predicate config, :validate_subdomain?
     assert_predicate config, :validate_pathname_slug?
     assert_predicate config, :rbac_enabled?
     assert_predicate config, :debug_mode?
-    assert_predicate config, :cache_write_enabled?
   end
 
   # Integration Tests - Real-world Configuration Scenarios
@@ -505,7 +487,7 @@ class ConfigurationTest < Minitest::Test
     assert_equal 'HS256', config.jwt_algorithm
     refute_predicate config, :validate_subdomain?
     refute_predicate config, :validate_pathname_slug?
-    refute_predicate config, :rbac_enabled?
+    refute_predicate config, :rbac_enabled? # false by default
     assert_empty config.skip_paths
   end
 
@@ -532,34 +514,32 @@ class ConfigurationTest < Minitest::Test
       validate_subdomain: true,
       validate_pathname_slug: true,
       rbac_enabled: true,
-      cache_store: :redis,
-      cache_options: { url: 'redis://localhost:6379' },
-      cache_write_enabled: true,
+      rbac_cache_store: :redis,
+      rbac_cache_store_options: { url: 'redis://localhost:6379' },
     )
 
     assert_predicate config, :validate_subdomain?
     assert_predicate config, :validate_pathname_slug?
     assert_predicate config, :rbac_enabled?
-    assert_equal :redis, config.cache_store
-    assert_predicate config, :cache_write_enabled?
-    assert_equal({ url: 'redis://localhost:6379' }, config.cache_options)
+    assert_equal :redis, config.rbac_cache_store
+    assert_equal({ url: 'redis://localhost:6379' }, config.rbac_cache_store_options)
+    assert_equal :memory, config.permissions_cache_store # Default
   end
 
   def test_zero_trust_rbac_configuration
+    # Middleware uses different cache store
     config = RackJwtAegis::Configuration.new(
       jwt_secret: 'test-secret',
       rbac_enabled: true,
-      rbac_cache_store: :redis,
-      rbac_cache_options: { url: 'redis://app:6379' },
-      permission_cache_store: :memory,
-      cache_write_enabled: false,
+      rbac_cache_store: :solid_cache,
+      permissions_cache_store: :redis,
+      permissions_cache_store_options: { url: 'redis://app:6379' },
     )
 
     assert_predicate config, :rbac_enabled?
-    assert_equal :redis, config.rbac_cache_store
-    assert_equal :memory, config.permission_cache_store
-    refute_predicate config, :cache_write_enabled?
-    assert_equal({ url: 'redis://app:6379' }, config.rbac_cache_options)
+    assert_equal :solid_cache, config.rbac_cache_store
+    assert_equal :redis, config.permissions_cache_store
+    assert_equal({ url: 'redis://app:6379' }, config.permissions_cache_store_options)
   end
 
   def test_development_configuration

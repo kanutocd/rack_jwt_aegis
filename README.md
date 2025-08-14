@@ -147,28 +147,24 @@ RackJwtAegis::Middleware.new(app, {
   pathname_slug_pattern: /^\/api\/v1\/([^\/]+)\//,  # Default pattern
 
   # RBAC Configuration
-  rbac_enabled: true,               # Default: false
-  rbac_cache_store: :redis,         # Required when RBAC enabled
-  rbac_cache_options: { url: ENV['REDIS_URL'] },
-  user_permissions_ttl: 3600,       # Default: 1800 (30 minutes) - TTL for cached user permissions
+  rbac_enabled: true,                 # Default: false
+  rbac_cache_store: :redis,           # Required when RBAC enabled. Default: :memory
+  rbac_cache_store_options: { url: ENV['REDIS_URL'] }, # Cache Store specific options. Default: {}
 
-  # Cache Store Configuration (choose one approach)
-  # Option 1: Shared cache for both RBAC and permissions
-  cache_store: :memory,             # :memory, :redis, :memcached, :solid_cache
-  cache_options: { url: ENV['REDIS_URL'] },
+  cached_permissions_ttl: 3600,            # Default: 1800 (30 minutes) - TTL for cached user permissions
+  permissions_cache_store: :solid_cache,   # Required when RBAC enabled. Default: :memory
+  permissions_cache_store_options: {},     # Cache Store specific options. Default: {}
 
-  # Option 2: Separate cache stores for RBAC and permissions
-  rbac_cache_store: :redis,         # For RBAC permissions data
-  rbac_cache_options: { url: ENV['REDIS_URL'] },
-  permission_cache_store: :memory,  # For cached user permissions
-  permission_cache_options: {},
+  # Or can also be the same Redis instance
+  # permissions_cache_store: :redis,   # Required when RBAC enabled. Default: :memory
+  # permissions_cache_store_options: { url: ENV['REDIS_URL'] },
 
   # Response Customization
   unauthorized_response: { error: 'Authentication required' },
   forbidden_response: { error: 'Access denied' },
 
   # Debugging
-  debug_mode: Rails.env.development?  # Default: false
+  debug_mode: Rails.env.development?  # Default: when in Rails, Rails.env.development? otherwise false
 })
 ```
 
@@ -404,18 +400,19 @@ All role values are normalized to strings internally for consistent matching aga
 
 ```ruby
 # Memory cache (development/testing)
-config.cache_store = :memory
+config.rbac_cache_store = :memory         # Default. When in Rails, it will default to Rails.application.config.cache_store
+config.permissions_cache_store = :memory  # Default. When in Rails, it will default to Rails.application.config.cache_store
 
 # Redis cache
-config.cache_store = :redis
-config.cache_options = { url: ENV['REDIS_URL'] }
+config.rbac_cache_store = :redis
+config.rbac_cache_store_options = { url: ENV['REDIS_URL'] }
 
 # Memcached cache
-config.cache_store = :memcached
-config.cache_options = { servers: ['localhost:11211'] }
+config.rbac_cache_store = :memcached
+config.rbac_cache_store_options = { servers: ['localhost:11211'] }
 
 # Solid Cache (Rails 8+)
-config.cache_store = :solid_cache
+config.rbac_cache_store = :solid_cache
 ```
 
 #### Separate Cache Stores
@@ -425,11 +422,11 @@ You can configure separate cache stores for RBAC permissions data and cached use
 ```ruby
 # Use Redis for RBAC data (shared across instances)
 config.rbac_cache_store = :redis
-config.rbac_cache_options = { url: ENV['REDIS_URL'] }
+config.rbac_cache_store_options = { url: ENV['REDIS_URL'] }
 
 # Use memory for user permission cache (faster local access)
-config.permission_cache_store = :memory
-config.permission_cache_options = {}
+config.permissions_cache_store = :memory
+config.permissions_cache_store_options = {}
 ```
 
 ## RBAC Cache Format
@@ -506,7 +503,7 @@ When RBAC is enabled, the middleware expects permissions to be stored in the cac
      "12345:acme-group.localhost.local/api/v1/company/sales/invoices:post": 1640995200
    }
    ```
-   TTL configurable via `user_permissions_ttl` option (default: 30 minutes)
+   TTL configurable via `cached_permissions_ttl` option (default: 30 minutes)
 
 ### Cache Invalidation Strategy
 

@@ -75,14 +75,15 @@ module RackJwtAegis
       accessible_slugs = payload[@config.payload_key(:pathname_slugs).to_s]
 
       if accessible_slugs.nil? || !accessible_slugs.is_a?(Array) || accessible_slugs.empty?
-        raise AuthorizationError, 'JWT payload missing or invalid pathname_slugs for company access validation'
+        raise AuthorizationError, 'JWT payload missing or invalid pathname_slugs for pathname slug access validation'
       end
 
       # Check if requested company slug is in user's accessible list
       return if accessible_slugs.map(&:downcase).include?(pathname_slug)
 
+      # TODO: make this error configurable as well
       raise AuthorizationError,
-            "Company access denied: '#{pathname_slug}' not in accessible companies #{accessible_slugs}"
+            "Pathname slug access denied: '#{pathname_slug}' not in accessible pathname slugs #{accessible_slugs}"
     end
 
     # Company Group header validation (additional security layer)

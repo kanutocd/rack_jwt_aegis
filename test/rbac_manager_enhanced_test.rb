@@ -5,9 +5,8 @@ require 'test_helper'
 class RbacManagerEnhancedTest < Minitest::Test
   def setup
     @config = RackJwtAegis::Configuration.new(basic_config.merge(
-                                                cache_store: :memory,
-                                                cache_write_enabled: true,
-                                                user_permissions_ttl: 300, # 5 minutes for testing
+                                                rbac_enabled: true,
+                                                cached_permissions_ttl: 300, # 5 minutes for testing
                                                 debug_mode: true,
                                               ))
     @manager = RackJwtAegis::RbacManager.new(@config)
@@ -17,14 +16,14 @@ class RbacManagerEnhancedTest < Minitest::Test
 
   def test_configurable_ttl_used_from_config
     # Test that the manager uses the configured TTL instead of hardcoded values
-    assert_equal 300, @config.user_permissions_ttl
+    assert_equal 300, @config.cached_permissions_ttl
 
     # Setup user permissions cache with timestamp older than configured TTL in new format
     permission_key = @manager.send(:build_permission_key, 123, @request)
     user_permissions = {
       permission_key => Time.now.to_i - 400, # 400s ago, older than 300s TTL
     }
-    permission_cache = @manager.instance_variable_get(:@permission_cache)
+    permission_cache = @manager.instance_variable_get(:@permissions_cache)
     permission_cache.write('user_permissions', user_permissions)
 
     # Should be cache miss due to TTL expiration
@@ -57,7 +56,7 @@ class RbacManagerEnhancedTest < Minitest::Test
     # First authorization should cache the permission with timestamp
     @manager.authorize(@request, payload)
 
-    permission_cache = @manager.instance_variable_get(:@permission_cache)
+    permission_cache = @manager.instance_variable_get(:@permissions_cache)
     user_permissions = permission_cache.read('user_permissions')
 
     assert_kind_of Hash, user_permissions
@@ -175,7 +174,7 @@ class RbacManagerEnhancedTest < Minitest::Test
       '54321:acme-group.localhost.local/api/v1/acme-company/sales/invoices:post' => current_time - 100,
     }
 
-    permission_cache = @manager.instance_variable_get(:@permission_cache)
+    permission_cache = @manager.instance_variable_get(:@permissions_cache)
     permission_cache.write('user_permissions', user_permissions)
 
     # Setup RBAC data with recent update (within TTL)
@@ -195,7 +194,7 @@ class RbacManagerEnhancedTest < Minitest::Test
     assert_nil result, 'Should be cache miss due to RBAC update within TTL'
 
     # Verify entire cache was nuked
-    permission_cache = @manager.instance_variable_get(:@permission_cache)
+    permission_cache = @manager.instance_variable_get(:@permissions_cache)
     updated_permissions = permission_cache.read('user_permissions')
 
     assert_nil updated_permissions, 'Entire cache should be nuked'
@@ -215,7 +214,7 @@ class RbacManagerEnhancedTest < Minitest::Test
       fresh_key_user_one => current_time - 100, # Fresh
       fresh_key_user_four => current_time - 150, # Fresh
     }
-    permission_cache = @manager.instance_variable_get(:@permission_cache)
+    permission_cache = @manager.instance_variable_get(:@permissions_cache)
     permission_cache.write('user_permissions', user_permissions)
 
     # Setup RBAC data with old update (outside TTL)

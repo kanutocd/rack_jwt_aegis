@@ -19,8 +19,6 @@ module RackJwtAegis
   #     validate_subdomain: true,
   #     validate_pathname_slug: true,
   #     rbac_enabled: true,
-  #     cache_store: :redis,
-  #     cache_write_enabled: true,
   #     skip_paths: ['/health', '/api/public/*'],
   #     debug_mode: Rails.env.development?
   #   )
@@ -88,38 +86,25 @@ module RackJwtAegis
     # @!endgroup
 
     # @!group Cache Configuration
-
-    # The primary cache store adapter type
-    # @return [Symbol] the cache store type (:memory, :redis, :memcached, :solid_cache)
-    attr_accessor :cache_store
-
-    # Options passed to the cache store adapter
-    # @return [Hash] cache store configuration options
-    attr_accessor :cache_options
-
-    # Whether the middleware can write to cache stores
-    # @return [Boolean] true if cache writing is enabled
-    attr_accessor :cache_write_enabled
-
     # The RBAC cache store adapter type (separate from main cache)
     # @return [Symbol] the RBAC cache store type
     attr_accessor :rbac_cache_store
 
     # Options for the RBAC cache store
     # @return [Hash] RBAC cache configuration options
-    attr_accessor :rbac_cache_options
+    attr_accessor :rbac_cache_store_options
 
     # The permission cache store adapter type
     # @return [Symbol] the permission cache store type
-    attr_accessor :permission_cache_store
+    attr_accessor :permissions_cache_store
 
     # Options for the permission cache store
     # @return [Hash] permission cache configuration options
-    attr_accessor :permission_cache_options
+    attr_accessor :permissions_cache_store_options
 
     # Time-to-live for user permissions cache in seconds
     # @return [Integer] TTL in seconds (default: 1800 - 30 minutes)
-    attr_accessor :user_permissions_ttl
+    attr_accessor :cached_permissions_ttl
 
     # @!endgroup
 
@@ -169,10 +154,11 @@ module RackJwtAegis
     # @option options [Regexp] :pathname_slug_pattern default pattern for pathname slugs
     # @option options [Hash] :payload_mapping mapping of JWT claim names
     # @option options [Array<String, Regexp>] :skip_paths ([]) paths to skip authentication
-    # @option options [Symbol] :cache_store cache adapter type
-    # @option options [Hash] :cache_options cache configuration options
-    # @option options [Boolean] :cache_write_enabled (false) enable cache writing
-    # @option options [Integer] :user_permissions_ttl (1800) user permissions cache TTL in seconds
+    # @option options [Symbol] :rbac_cache_store cache adapter type
+    # @option options [Hash] :rbac_cache_store_options cache configuration options
+    # @option options [Symbol] :permissions_cache_store cache adapter type
+    # @option options [Hash] :permissions_cache_store_options cache configuration options
+    # @option options [Integer] :cached_permissions_ttl (1800) user permissions cache TTL in seconds
     # @option options [Boolean] :debug_mode (false) enable debug logging
     # @raise [ConfigurationError] if jwt_secret is missing or configuration is invalid
     def initialize(options = {})
@@ -218,12 +204,6 @@ module RackJwtAegis
     # @return [Boolean] true if debug mode is enabled
     def debug_mode?
       config_boolean?(debug_mode)
-    end
-
-    # Check if cache write access is enabled
-    # @return [Boolean] true if cache writing is enabled
-    def cache_write_enabled?
-      config_boolean?(cache_write_enabled)
     end
 
     # Check if the given path should skip JWT authentication
@@ -272,13 +252,9 @@ module RackJwtAegis
       @validate_subdomain = false
       @validate_pathname_slug = false
       @validate_tenant_id = false
-      @rbac_enabled = false
       @tenant_id_header_name = 'X-Tenant-Id'
       @pathname_slug_pattern = %r{^/api/v1/([^/]+)/}
       @skip_paths = []
-      @cache_write_enabled = false
-      @user_permissions_ttl = 1800 # 30 minutes default
-      @debug_mode = false
       @payload_mapping = {
         user_id: :user_id,
         tenant_id: :tenant_id,
@@ -288,6 +264,18 @@ module RackJwtAegis
       }
       @unauthorized_response = { error: 'Authentication required' }
       @forbidden_response = { error: 'Access denied' }
+      @rbac_enabled = false
+      @cached_permissions_ttl = 1800 # 30 minutes default
+      @rbac_cache_store = if Object.const_defined?(:Rails) && Rails.const_defined?(:Application)
+                            @debug_mode = Rails.env.development?
+                            Rails.application.config.cache_store
+                          else
+                            @debug_mode = false
+                            :memory
+                          end
+      @permissions_cache_store = @rbac_cache_store
+      @rbac_cache_store_options = {}
+      @permissions_cache_store_options = {}
     end
 
     def validate!
@@ -325,27 +313,10 @@ module RackJwtAegis
     end
 
     def validate_cache_settings!
-      return unless rbac_enabled?
+      return unless rbac_enabled? && (rbac_cache_store.nil? || permissions_cache_store.nil?)
 
-      # Validate cache store configuration
-      if cache_store && !cache_write_enabled?
-        # Zero trust mode - separate caches required
-        if rbac_cache_store.nil?
-          raise ConfigurationError, 'rbac_cache_store is required when cache_write_enabled is false'
-        end
-
-        if permission_cache_store.nil?
-          @permission_cache_store = :memory # Default fallback
-        end
-      elsif cache_store.nil? && rbac_cache_store.nil?
-        # Both cache stores are missing - at least one is required for RBAC
-        raise ConfigurationError, 'cache_store or rbac_cache_store is required when RBAC is enabled'
-      end
-
-      # Set default fallback for permission_cache_store when rbac_cache_store is provided
-      return unless !rbac_cache_store.nil? && permission_cache_store.nil?
-
-      @permission_cache_store = :memory # Default fallback
+      raise ConfigurationError,
+            'rbac_cache_store and permissions_cache_store are required when RBAC is enabled'
     end
 
     def validate_multi_tenant_settings!
