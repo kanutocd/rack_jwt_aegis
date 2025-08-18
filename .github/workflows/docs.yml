@@ -50,7 +50,7 @@ jobs:
 
       - name: Setup Pages (only on main branch or manual dispatch)
         if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
-        uses: actions/configure-pages@v4
+        uses: actions/configure-pages@v5
 
       - name: Upload artifact (only on main branch or manual dispatch)
         if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
