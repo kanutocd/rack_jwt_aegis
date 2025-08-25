@@ -12,7 +12,7 @@ group :development do
   gem 'rack-test', '~> 2.2'
   gem 'rake', '~> 13.3'
   gem 'redcarpet', '~> 3.6'
-  gem 'rubocop', '~> 1.79'
+  gem 'rubocop', '~> 1.80'
   gem 'rubocop-minitest', '~> 0.38.1'
   gem 'rubocop-performance', '~> 1.25'
   gem 'rubocop-rake', '~> 0.7.1'
