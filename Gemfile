@@ -14,7 +14,7 @@ group :development do
   gem 'redcarpet', '~> 3.6'
   gem 'rubocop', '~> 1.79'
   gem 'rubocop-minitest', '~> 0.38.1'
-  gem 'rubocop-performance', '~> 1.25'
+  gem 'rubocop-performance', '~> 1.26'
   gem 'rubocop-rake', '~> 0.7.1'
   gem 'simplecov', '~> 0.22.0'
   gem 'vcr', '~> 6.3'
