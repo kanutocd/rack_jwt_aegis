@@ -25,7 +25,7 @@ GEM
       base64
     language_server-protocol (3.17.0.5)
     lint_roller (1.1.0)
-    minitest (5.25.5)
+    minitest (5.26.2)
     mocha (2.7.1)
       ruby2_keywords (>= 0.0.5)
     parallel (1.27.0)
@@ -103,7 +103,7 @@ PLATFORMS
 DEPENDENCIES
   dalli (~> 3.0)
   irb (~> 1.15)
-  minitest (~> 5.25)
+  minitest (~> 5.26)
   mocha (~> 2.7)
   rack-test (~> 2.2)
   rack_jwt_aegis!
