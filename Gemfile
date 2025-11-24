@@ -8,7 +8,7 @@ gemspec
 group :development do
   gem 'irb', '~> 1.15'
   gem 'minitest', '~> 5.25'
-  gem 'mocha', '~> 2.7'
+  gem 'mocha', '~> 2.8'
   gem 'rack-test', '~> 2.2'
   gem 'rake', '~> 13.3'
   gem 'redcarpet', '~> 3.6'
