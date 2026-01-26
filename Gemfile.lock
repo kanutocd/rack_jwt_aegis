@@ -11,7 +11,8 @@ GEM
     ast (2.4.3)
     base64 (0.3.0)
     connection_pool (2.5.3)
-    dalli (3.2.8)
+    dalli (4.0.1)
+      logger
     date (3.4.1)
     docile (1.4.1)
     erb (5.0.2)
@@ -25,6 +26,7 @@ GEM
       base64
     language_server-protocol (3.17.0.5)
     lint_roller (1.1.0)
+    logger (1.7.0)
     minitest (5.25.5)
     mocha (2.7.1)
       ruby2_keywords (>= 0.0.5)
@@ -101,7 +103,7 @@ PLATFORMS
   x86_64-linux
 
 DEPENDENCIES
-  dalli (~> 3.0)
+  dalli (~> 4.0)
   irb (~> 1.15)
   minitest (~> 5.25)
   mocha (~> 2.7)
