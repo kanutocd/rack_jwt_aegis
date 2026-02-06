@@ -7,7 +7,7 @@ gemspec
 
 group :development do
   gem 'irb', '~> 1.16'
-  gem 'minitest', '~> 5.25'
+  gem 'minitest', '~> 6.0'
   gem 'mocha', '~> 3.0'
   gem 'rack-test', '~> 2.2'
   gem 'rake', '~> 13.3'

@@ -25,7 +25,8 @@ GEM
       base64
     language_server-protocol (3.17.0.5)
     lint_roller (1.1.0)
-    minitest (5.25.5)
+    minitest (6.0.1)
+      prism (~> 1.5)
     mocha (3.0.1)
       ruby2_keywords (>= 0.0.5)
     parallel (1.27.0)
@@ -35,7 +36,7 @@ GEM
     pp (0.6.3)
       prettyprint
     prettyprint (0.2.0)
-    prism (1.4.0)
+    prism (1.7.0)
     psych (5.3.1)
       date
       stringio
@@ -104,6 +105,7 @@ PLATFORMS
 
 DEPENDENCIES
   dalli (~> 3.0)
+  minitest (~> 6.0)
   irb (~> 1.16)
   minitest (~> 5.25)
   mocha (~> 3.0)
