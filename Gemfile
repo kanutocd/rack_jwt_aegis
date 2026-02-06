@@ -6,9 +6,9 @@ source 'https://rubygems.org'
 gemspec
 
 group :development do
-  gem 'irb', '~> 1.15'
+  gem 'irb', '~> 1.16'
   gem 'minitest', '~> 6.0'
-  gem 'mocha', '~> 2.7'
+  gem 'mocha', '~> 3.0'
   gem 'rack-test', '~> 2.2'
   gem 'rake', '~> 13.3'
   gem 'redcarpet', '~> 3.6'
@@ -18,7 +18,7 @@ group :development do
   gem 'rubocop-rake', '~> 0.7.1'
   gem 'simplecov', '~> 0.22.0'
   gem 'vcr', '~> 6.3'
-  gem 'yard', '~> 0.9.37'
+  gem 'yard', '~> 0.9.38'
   # Cache adapters for testing
   gem 'dalli', '~> 3.0'
   gem 'redis', '~> 5.0'
