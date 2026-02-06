@@ -18,7 +18,7 @@ group :development do
   gem 'rubocop-rake', '~> 0.7.1'
   gem 'simplecov', '~> 0.22.0'
   gem 'vcr', '~> 6.3'
-  gem 'yard', '~> 0.9.37'
+  gem 'yard', '~> 0.9.38'
   # Cache adapters for testing
   gem 'dalli', '~> 3.0'
   gem 'redis', '~> 5.0'
