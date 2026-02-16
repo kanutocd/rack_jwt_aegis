@@ -6,7 +6,7 @@ source 'https://rubygems.org'
 gemspec
 
 group :development do
-  gem 'irb', '~> 1.16'
+  gem 'irb', '~> 1.17'
   gem 'minitest', '~> 6.0'
   gem 'mocha', '~> 3.0'
   gem 'rack-test', '~> 2.2'
