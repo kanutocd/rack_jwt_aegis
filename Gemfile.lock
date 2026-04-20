@@ -98,16 +98,15 @@ GEM
     unicode-emoji (4.0.4)
     vcr (6.3.1)
       base64
-    yard (0.9.38)
+    yard (0.9.43)
 
 PLATFORMS
   x86_64-linux
 
 DEPENDENCIES
   dalli (~> 3.0)
-  minitest (~> 6.0)
   irb (~> 1.16)
-  minitest (~> 5.25)
+  minitest (~> 6.0)
   mocha (~> 3.0)
   rack-test (~> 2.2)
   rack_jwt_aegis!
@@ -120,7 +119,7 @@ DEPENDENCIES
   rubocop-rake (~> 0.7.1)
   simplecov (~> 0.22.0)
   vcr (~> 6.3)
-  yard (~> 0.9.38)
+  yard (~> 0.9.43)
 
 BUNDLED WITH
    2.7.1
