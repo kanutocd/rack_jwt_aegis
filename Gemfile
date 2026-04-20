@@ -10,7 +10,7 @@ group :development do
   gem 'minitest', '~> 6.0'
   gem 'mocha', '~> 3.0'
   gem 'rack-test', '~> 2.2'
-  gem 'rake', '~> 13.3'
+  gem 'rake', '~> 13.4'
   gem 'redcarpet', '~> 3.6'
   gem 'rubocop', '~> 1.79'
   gem 'rubocop-minitest', '~> 0.38.1'
