@@ -9,9 +9,9 @@ class RbacRoleExtractionTest < Minitest::Test
       rbac_enabled: true,
       rbac_cache_store: :memory,
     )
-    @middleware = RackJwtAegis::Middleware.new(nil, @config.instance_variables.each_with_object({}) do |var, hash|
-      hash[var.to_s.delete('@').to_sym] = @config.instance_variable_get(var)
-    end)
+    @middleware = RackJwtAegis::Middleware.new(nil, @config.instance_variables.to_h do |var|
+                                                      [var.to_s.delete('@').to_sym, @config.instance_variable_get(var)]
+                                                    end)
   end
 
   def test_extract_user_roles_with_default_payload_mapping
@@ -26,9 +26,9 @@ class RbacRoleExtractionTest < Minitest::Test
       jwt_secret: 'test-secret',
       payload_mapping: { role_ids: :user_roles },
     )
-    middleware = RackJwtAegis::Middleware.new(nil, config.instance_variables.each_with_object({}) do |var, hash|
-      hash[var.to_s.delete('@').to_sym] = config.instance_variable_get(var)
-    end)
+    middleware = RackJwtAegis::Middleware.new(nil, config.instance_variables.to_h do |var|
+                                                     [var.to_s.delete('@').to_sym, config.instance_variable_get(var)]
+                                                   end)
 
     payload = { 'user_roles' => ['manager', 'viewer'] }
     roles = middleware.send(:extract_user_roles, payload)

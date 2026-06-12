@@ -14,9 +14,9 @@ class RbacIntegrationTest < Minitest::Test
       [200, { 'Content-Type' => 'application/json' }, ['{"message": "success"}']]
     end
 
-    @middleware = RackJwtAegis::Middleware.new(@app, @config.instance_variables.each_with_object({}) do |var, hash|
-      hash[var.to_s.delete('@').to_sym] = @config.instance_variable_get(var)
-    end)
+    @middleware = RackJwtAegis::Middleware.new(@app, @config.instance_variables.to_h do |var|
+                                                       [var.to_s.delete('@').to_sym, @config.instance_variable_get(var)]
+                                                     end)
 
     # Setup RBAC cache with the user's specified format
     # We need to get the cache from the middleware's RBAC manager to ensure consistency
@@ -98,9 +98,9 @@ class RbacIntegrationTest < Minitest::Test
       payload_mapping: { role_ids: :user_roles }, # Custom mapping
     )
 
-    middleware = RackJwtAegis::Middleware.new(@app, config.instance_variables.each_with_object({}) do |var, hash|
-      hash[var.to_s.delete('@').to_sym] = config.instance_variable_get(var)
-    end)
+    middleware = RackJwtAegis::Middleware.new(@app, config.instance_variables.to_h do |var|
+                                                      [var.to_s.delete('@').to_sym, config.instance_variable_get(var)]
+                                                    end)
 
     # Setup RBAC cache for this middleware instance
     rbac_manager = middleware.instance_variable_get(:@rbac_manager)
