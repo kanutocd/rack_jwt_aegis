@@ -487,7 +487,10 @@ module RackJwtAegis
       error_msg << 'tenant_id_header_name is required' if tenant_id_header_name.to_s.strip.empty?
       error_msg << 'tenant_slug_header_name is required' if tenant_slug_header_name.to_s.strip.empty?
       error_msg << 'user_id_header_name is required' if user_id_header_name.to_s.strip.empty?
-      raise ConfigurationError, "#{error_msg.join(' and ')} when require_authentication_headers is true" if error_msg.any?
+      return unless error_msg.any?
+
+      raise ConfigurationError,
+            "#{error_msg.join(' and ')} when require_authentication_headers is true"
     end
 
     def validate_circuit_breaker_settings!

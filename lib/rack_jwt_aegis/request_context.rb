@@ -121,7 +121,10 @@ module RackJwtAegis
 
     def set_tenant_context(env, payload)
       # Set multi-tenant information
-      env[TENANT_ID_KEY] = payload[@config.payload_key(:tenant_id).to_s] if @config.validate_tenant_id? || @config.require_authentication_headers?
+      if @config.validate_tenant_id? || @config.require_authentication_headers?
+        env[TENANT_ID_KEY] =
+          payload[@config.payload_key(:tenant_id).to_s]
+      end
       env[SUBDOMAIN_KEY] = payload[@config.payload_key(:tenant_slug).to_s] if @config.require_authentication_headers?
       env[SUBDOMAIN_KEY] = payload[@config.payload_key(:subdomain).to_s] if @config.validate_subdomain?
       return unless @config.validate_pathname_slug? || @config.payload_mapping.key?(:pathname_slugs)

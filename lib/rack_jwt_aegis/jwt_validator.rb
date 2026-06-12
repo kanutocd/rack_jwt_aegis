@@ -104,7 +104,7 @@ module RackJwtAegis
       required_claims << @config.payload_key(:tenant_id) if @config.require_authentication_headers?
       required_claims << @config.payload_key(:tenant_slug) if @config.require_authentication_headers?
       required_claims << @config.payload_key(:role_ids) if @config.rbac_enabled?
-      required_claims += %i[exp iat] if @config.require_expiration_claims?
+      required_claims += [:exp, :iat] if @config.require_expiration_claims?
 
       missing_claims = required_claims.select { |claim| payload[claim.to_s].to_s.empty? }
       return if missing_claims.empty?
@@ -144,7 +144,7 @@ module RackJwtAegis
       end
 
       if @config.require_expiration_claims?
-        %w[exp iat].each do |claim|
+        ['exp', 'iat'].each do |claim|
           value = payload[claim]
           raise AuthenticationError, "Invalid #{claim} format in JWT payload" unless value.is_a?(Numeric)
         end

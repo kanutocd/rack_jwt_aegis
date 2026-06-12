@@ -6,18 +6,18 @@ class CircuitBreakerTest < Minitest::Test
   def test_opens_after_failure_threshold
     breaker = RackJwtAegis::CircuitBreaker.new(failure_threshold: 2, cooldown_seconds: 60)
 
-    assert breaker.allow_request?
+    assert_predicate breaker, :allow_request?
     refute_predicate breaker, :open?
 
     breaker.record_failure
 
-    assert breaker.allow_request?
+    assert_predicate breaker, :allow_request?
     refute_predicate breaker, :open?
 
     breaker.record_failure
 
     assert_predicate breaker, :open?
-    refute breaker.allow_request?
+    refute_predicate breaker, :allow_request?
   end
 
   def test_allows_request_after_cooldown
@@ -26,7 +26,7 @@ class CircuitBreakerTest < Minitest::Test
     breaker.record_failure
 
     assert_predicate breaker, :open?
-    assert breaker.allow_request?
+    assert_predicate breaker, :allow_request?
     refute_predicate breaker, :open?
   end
 end

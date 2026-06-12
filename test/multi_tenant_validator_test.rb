@@ -208,10 +208,10 @@ class MultiTenantValidatorTest < Minitest::Test
                                              ))
     validator = RackJwtAegis::MultiTenantValidator.new(config)
     request = rack_request(headers: {
-                             'X-Organization-Id' => 'org-123',
-                             'X-Organization-Slug' => 'acme-village',
-                             'X-User-Id' => 'user-456',
-                           })
+      'X-Organization-Id' => 'org-123',
+      'X-Organization-Slug' => 'acme-village',
+      'X-User-Id' => 'user-456',
+    })
     payload = {
       'user_id' => 'user-456',
       'organization_id' => 'org-123',
@@ -235,9 +235,9 @@ class MultiTenantValidatorTest < Minitest::Test
                                              ))
     validator = RackJwtAegis::MultiTenantValidator.new(config)
     request = rack_request(headers: {
-                             'X-Organization-Id' => 'org-123',
-                             'X-User-Id' => 'user-456',
-                           })
+      'X-Organization-Id' => 'org-123',
+      'X-User-Id' => 'user-456',
+    })
     payload = {
       'user_id' => 'user-456',
       'organization_id' => 'org-123',
@@ -265,10 +265,10 @@ class MultiTenantValidatorTest < Minitest::Test
                                              ))
     validator = RackJwtAegis::MultiTenantValidator.new(config)
     request = rack_request(headers: {
-                             'X-Organization-Id' => 'org-123',
-                             'X-Organization-Slug' => 'wrong-village',
-                             'X-User-Id' => 'user-456',
-                           })
+      'X-Organization-Id' => 'org-123',
+      'X-Organization-Slug' => 'wrong-village',
+      'X-User-Id' => 'user-456',
+    })
     payload = {
       'user_id' => 'user-456',
       'organization_id' => 'org-123',

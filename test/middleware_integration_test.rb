@@ -156,9 +156,11 @@ class MiddlewareIntegrationTest < Minitest::Test
     header 'Authorization', "Bearer #{token}"
 
     get '/api/users'
+
     assert_equal 500, last_response.status
 
     get '/api/users'
+
     assert_equal 503, last_response.status
     assert_match(/Circuit breaker open/, JSON.parse(last_response.body)['error'])
   end
