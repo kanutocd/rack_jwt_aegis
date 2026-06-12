@@ -1,11 +1,22 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+## Unreleased
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [1.1.1] - 2026-06-13
 
-## [1.1.1] - 2025-08-14
+### 🚀 Added
+
+#### Method-Aware Skip Routes
+
+- Added `skip_routes` to support request-aware public route matching by path and HTTP verb.
+- Kept `skip_paths` as a backward-compatible alias for all-method skips.
+- Normalizes route rules once at configuration time so middleware checks stay fast per request.
+
+#### Route Skipping Behavior
+
+- Middleware now evaluates `METHOD + path` for skip decisions, so `POST /login` can be public while `GET /login` remains protected.
+- Added support for blank verb lists to mean all methods on a route entry.
+- Updated the Pink House API initializer to use the new `skip_routes` shape.
 
 ### 🔧 Fixed
 

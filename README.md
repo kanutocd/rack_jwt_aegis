@@ -3,7 +3,7 @@
 [![Gem Version](https://badge.fury.io/rb/rack_jwt_aegis.svg)](https://badge.fury.io/rb/rack_jwt_aegis)
 [![CI](https://github.com/kanutocd/rack_jwt_aegis/workflows/CI/badge.svg)](https://github.com/kanutocd/rack_jwt_aegis/actions)
 [![Coverage Status](https://codecov.io/gh/kanutocd/rack_jwt_aegis/branch/main/graph/badge.svg)](https://codecov.io/gh/kanutocd/rack_jwt_aegis)
-[![Ruby Version](https://img.shields.io/badge/ruby-%3E%3D%203.1.0-ruby.svg)](https://www.ruby-lang.org/en/)
+[![Ruby Version](https://img.shields.io/badge/ruby-%3E%3D%203.2.0-ruby.svg)](https://www.ruby-lang.org/en/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 JWT authentication and authorization middleware for hierarchical multi-tenant Rack applications with 2-level tenant support.
