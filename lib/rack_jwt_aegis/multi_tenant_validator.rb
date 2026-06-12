@@ -33,12 +33,41 @@ module RackJwtAegis
     # @param payload [Hash] the JWT payload containing tenant information
     # @raise [AuthorizationError] if tenant validation fails
     def validate(request, payload)
+      validate_authentication_headers(request, payload)
       validate_subdomain(request, payload)
       validate_pathname_slug(request, payload)
       validate_tenant_id_header(request, payload)
     end
 
     private
+
+    def validate_authentication_headers(request, payload)
+      return unless @config.require_authentication_headers?
+
+      validate_header_claim_match(
+        request,
+        payload,
+        header_name: @config.tenant_id_header_name,
+        claim_name: @config.payload_key(:tenant_id),
+        label: 'tenant id',
+      )
+
+      validate_header_claim_match(
+        request,
+        payload,
+        header_name: @config.tenant_slug_header_name,
+        claim_name: @config.payload_key(:tenant_slug),
+        label: 'tenant slug',
+      )
+
+      validate_header_claim_match(
+        request,
+        payload,
+        header_name: @config.user_id_header_name,
+        claim_name: @config.payload_key(:user_id),
+        label: 'user id',
+      )
+    end
 
     # Level 1 Multi-Tenant: Top-level tenant (Company-Group) validation via subdomain
     def validate_subdomain(request, payload)
@@ -100,6 +129,23 @@ module RackJwtAegis
 
       raise AuthorizationError,
             "Tenant id header mismatch: header '#{header_value}' does not match JWT '#{jwt_claim}'"
+    end
+
+    def validate_header_claim_match(request, payload, header_name:, claim_name:, label:)
+      header_value = header_value(request, header_name)
+      raise AuthorizationError, "Required authentication header missing: #{header_name}" if header_value.empty?
+
+      jwt_claim = payload[claim_name.to_s].to_s.strip.downcase
+      raise AuthorizationError, "JWT payload missing #{claim_name} for #{label} header validation" if jwt_claim.empty?
+
+      return if header_value.eql?(jwt_claim)
+
+      raise AuthorizationError,
+            "#{label.capitalize} header mismatch: header '#{header_value}' does not match JWT '#{jwt_claim}'"
+    end
+
+    def header_value(request, header_name)
+      request.get_header("HTTP_#{header_name.upcase.tr('-', '_')}").to_s.strip.downcase
     end
 
     def extract_subdomain(host)

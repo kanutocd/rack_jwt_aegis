@@ -59,6 +59,43 @@ class JwtValidatorTest < Minitest::Test
     end
   end
 
+  def test_requires_expiration_claims_when_configured
+    config = RackJwtAegis::Configuration.new(basic_config.merge(require_expiration_claims: true))
+    validator = RackJwtAegis::JwtValidator.new(config)
+    payload = valid_jwt_payload.dup
+    payload.delete('exp')
+    token = generate_jwt_token(payload)
+
+    error = assert_raises(RackJwtAegis::AuthenticationError) do
+      validator.validate(token)
+    end
+
+    assert_match(/JWT payload missing required claims: exp/, error.message)
+  end
+
+  def test_validates_required_authentication_header_claims
+    config = RackJwtAegis::Configuration.new(basic_config.merge(
+                                               require_authentication_headers: true,
+                                               payload_mapping: {
+                                                 user_id: :user_id,
+                                                 tenant_id: :organization_id,
+                                                 tenant_slug: :organization_slug,
+                                               },
+                                             ))
+    validator = RackJwtAegis::JwtValidator.new(config)
+    token = generate_jwt_token(
+      'user_id' => 'user-123',
+      'organization_id' => 'org-123',
+      'organization_slug' => 'acme-village',
+      'exp' => Time.now.to_i + 3600,
+      'iat' => Time.now.to_i,
+    )
+
+    payload = validator.validate(token)
+
+    assert_equal 'org-123', payload['organization_id']
+  end
+
   def test_validates_pathname_slugs_format
     config = RackJwtAegis::Configuration.new(
       basic_config.merge(validate_pathname_slug: true),

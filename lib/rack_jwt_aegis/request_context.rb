@@ -24,6 +24,7 @@ module RackJwtAegis
     USER_ID_KEY = 'rack_jwt_aegis.user_id'
     TENANT_ID_KEY = 'rack_jwt_aegis.tenant_id'
     SUBDOMAIN_KEY = 'rack_jwt_aegis.subdomain'
+    TENANT_SLUG_KEY = SUBDOMAIN_KEY
     PATHNAME_SLUGS_KEY = 'rack_jwt_aegis.pathname_slugs'
     AUTHENTICATED_KEY = 'rack_jwt_aegis.authenticated'
 
@@ -84,6 +85,10 @@ module RackJwtAegis
       env[TENANT_ID_KEY]
     end
 
+    def self.tenant_slug(env)
+      env[TENANT_SLUG_KEY]
+    end
+
     def self.subdomain(env)
       env[SUBDOMAIN_KEY]
     end
@@ -100,6 +105,10 @@ module RackJwtAegis
       tenant_id(request.env)
     end
 
+    def self.current_tenant_slug(request)
+      tenant_slug(request.env)
+    end
+
     def self.has_pathname_slug_access?(env, pathname_slug)
       pathname_slugs(env).include?(pathname_slug)
     end
@@ -112,7 +121,8 @@ module RackJwtAegis
 
     def set_tenant_context(env, payload)
       # Set multi-tenant information
-      env[TENANT_ID_KEY] = payload[@config.payload_key(:tenant_id).to_s] if @config.validate_tenant_id?
+      env[TENANT_ID_KEY] = payload[@config.payload_key(:tenant_id).to_s] if @config.validate_tenant_id? || @config.require_authentication_headers?
+      env[SUBDOMAIN_KEY] = payload[@config.payload_key(:tenant_slug).to_s] if @config.require_authentication_headers?
       env[SUBDOMAIN_KEY] = payload[@config.payload_key(:subdomain).to_s] if @config.validate_subdomain?
       return unless @config.validate_pathname_slug? || @config.payload_mapping.key?(:pathname_slugs)
 

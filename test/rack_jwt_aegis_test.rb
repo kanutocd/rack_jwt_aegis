@@ -36,6 +36,49 @@ class RackJwtAegisTest < Minitest::Test
     refute config.skip_path?('/api/users')
   end
 
+  def test_skip_routes_supports_method_specific_matches
+    config = RackJwtAegis::Configuration.new(
+      basic_config.merge(
+        skip_routes: [
+          { path: '/health' },
+          { path: '/api/v1/sessions', verbs: [:post] },
+        ],
+      ),
+    )
+
+    assert config.skip_request?('/health', 'GET')
+    assert config.skip_request?('/health', 'POST')
+    assert config.skip_request?('/api/v1/sessions', 'POST')
+    refute config.skip_request?('/api/v1/sessions', 'GET')
+    refute config.skip_request?('/api/users', 'POST')
+  end
+
+  def test_skip_paths_remains_backward_compatible
+    config = RackJwtAegis::Configuration.new(
+      basic_config.merge(skip_paths: ['/health']),
+    )
+
+    assert_equal ['/health'], config.skip_paths
+    assert config.skip_request?('/health', 'GET')
+    assert config.skip_request?('/health', 'POST')
+  end
+
+  def test_skip_route_setters_invalidate_normalized_cache
+    config = RackJwtAegis::Configuration.new(basic_config)
+
+    refute config.skip_request?('/health', 'GET')
+
+    config.skip_routes = [{ path: '/health' }]
+
+    assert config.skip_request?('/health', 'GET')
+    assert config.skip_request?('/health', 'POST')
+
+    config.skip_routes = [{ path: '/sessions', verbs: [:post] }]
+
+    assert config.skip_request?('/sessions', 'POST')
+    refute config.skip_request?('/sessions', 'GET')
+  end
+
   def test_feature_toggles
     config = RackJwtAegis::Configuration.new(
       basic_config.merge(

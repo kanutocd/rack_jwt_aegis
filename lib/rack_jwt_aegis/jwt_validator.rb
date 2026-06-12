@@ -101,7 +101,10 @@ module RackJwtAegis
       required_claims << @config.payload_key(:subdomain) if @config.validate_subdomain?
       required_claims << @config.payload_key(:tenant_id) if @config.validate_tenant_id?
       required_claims << @config.payload_key(:pathname_slugs) if @config.validate_pathname_slug?
+      required_claims << @config.payload_key(:tenant_id) if @config.require_authentication_headers?
+      required_claims << @config.payload_key(:tenant_slug) if @config.require_authentication_headers?
       required_claims << @config.payload_key(:role_ids) if @config.rbac_enabled?
+      required_claims += %i[exp iat] if @config.require_expiration_claims?
 
       missing_claims = required_claims.select { |claim| payload[claim.to_s].to_s.empty? }
       return if missing_claims.empty?
@@ -125,6 +128,25 @@ module RackJwtAegis
         tenant_id = payload[@config.payload_key(:tenant_id).to_s]
         if tenant_id.to_s.empty? || (!tenant_id.is_a?(Numeric) && !tenant_id.is_a?(String))
           raise AuthenticationError, 'Invalid tenant_id format in JWT payload'
+        end
+      end
+
+      if @config.require_authentication_headers?
+        tenant_id = payload[@config.payload_key(:tenant_id).to_s]
+        if tenant_id.to_s.empty? || (!tenant_id.is_a?(Numeric) && !tenant_id.is_a?(String))
+          raise AuthenticationError, 'Invalid tenant_id format in JWT payload'
+        end
+
+        tenant_slug = payload[@config.payload_key(:tenant_slug).to_s]
+        if tenant_slug.to_s.empty? || !tenant_slug.is_a?(String)
+          raise AuthenticationError, 'Invalid tenant_slug format in JWT payload'
+        end
+      end
+
+      if @config.require_expiration_claims?
+        %w[exp iat].each do |claim|
+          value = payload[claim]
+          raise AuthenticationError, "Invalid #{claim} format in JWT payload" unless value.is_a?(Numeric)
         end
       end
 

@@ -10,7 +10,10 @@ class MiddlewareIntegrationTest < Minitest::Test
     @app ||= Rack::Builder.new do
       use RackJwtAegis::Middleware, {
         jwt_secret: 'test-secret',
-        skip_paths: ['/health'],
+        skip_routes: [
+          { path: '/health' },
+          { path: '/login', verbs: [:post] },
+        ],
       }
 
       run ->(env) {
@@ -22,6 +25,16 @@ class MiddlewareIntegrationTest < Minitest::Test
 
   def test_allows_skip_paths_without_auth
     get '/health'
+
+    assert_equal 200, last_response.status
+  end
+
+  def test_skips_only_the_matching_http_verb
+    get '/login'
+
+    assert_equal 401, last_response.status
+
+    post '/login'
 
     assert_equal 200, last_response.status
   end
@@ -55,7 +68,7 @@ class MiddlewareIntegrationTest < Minitest::Test
       }
 
       run ->(_env) { [200, {}, ['OK']] }
-    end
+    end.to_app
     header 'Authorization', 'Invalid format'
     get '/api/users'
 
@@ -90,6 +103,64 @@ class MiddlewareIntegrationTest < Minitest::Test
     response = JSON.parse(last_response.body)
 
     assert_match(/expired/, response['error'])
+  end
+
+  def test_strict_authenticated_headers_require_all_headers
+    @app = Rack::Builder.new do
+      use RackJwtAegis::Middleware, {
+        jwt_secret: 'test-secret',
+        require_authentication_headers: true,
+        tenant_id_header_name: 'X-Organization-Id',
+        tenant_slug_header_name: 'X-Organization-Slug',
+        user_id_header_name: 'X-User-Id',
+        payload_mapping: {
+          user_id: :user_id,
+          tenant_id: :organization_id,
+          tenant_slug: :organization_slug,
+        },
+      }
+
+      run ->(_env) { [200, {}, ['OK']] }
+    end
+
+    token = generate_jwt_token(
+      'user_id' => 'user-123',
+      'organization_id' => 'org-123',
+      'organization_slug' => 'acme-village',
+      'exp' => Time.now.to_i + 3600,
+      'iat' => Time.now.to_i,
+    )
+
+    header 'Authorization', "Bearer #{token}"
+    header 'X-Organization-Id', 'org-123'
+    header 'X-User-Id', 'user-123'
+    get '/api/users'
+
+    assert_equal 403, last_response.status
+    assert_match(/Required authentication header missing: X-Organization-Slug/, JSON.parse(last_response.body)['error'])
+  end
+
+  def test_circuit_breaker_fails_fast_after_unexpected_errors
+    @app = Rack::Builder.new do
+      use RackJwtAegis::Middleware, {
+        jwt_secret: 'test-secret',
+        circuit_breaker_enabled: true,
+        circuit_breaker_failure_threshold: 1,
+        circuit_breaker_cooldown_seconds: 60,
+      }
+
+      run ->(_env) { raise 'upstream down' }
+    end.to_app
+
+    token = generate_jwt_token
+    header 'Authorization', "Bearer #{token}"
+
+    get '/api/users'
+    assert_equal 500, last_response.status
+
+    get '/api/users'
+    assert_equal 503, last_response.status
+    assert_match(/Circuit breaker open/, JSON.parse(last_response.body)['error'])
   end
 
   def test_multi_tenant_subdomain_validation
@@ -153,8 +224,16 @@ class MiddlewareIntegrationTest < Minitest::Test
   attr_reader :last_request, :last_response
 
   def get(path, params = {}, env = {})
+    request(:get, path, params, env)
+  end
+
+  def post(path, params = {}, env = {})
+    request(:post, path, params, env)
+  end
+
+  def request(method, path, params = {}, env = {})
     env.merge!(@headers) if @headers
     @last_request = Rack::MockRequest.new(app)
-    @last_response = @last_request.get(path, params.merge(env))
+    @last_response = @last_request.request(method.to_s.upcase, path, params.merge(env))
   end
 end

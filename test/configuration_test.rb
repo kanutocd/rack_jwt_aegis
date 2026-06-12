@@ -65,6 +65,8 @@ class ConfigurationTest < Minitest::Test
 
     assert_equal 'HS256', config.jwt_algorithm
     assert_equal 'X-Tenant-Id', config.tenant_id_header_name
+    assert_equal 'X-Tenant-Slug', config.tenant_slug_header_name
+    assert_equal 'X-User-Id', config.user_id_header_name
     assert_equal(%r{^/api/v1/([^/]+)/}, config.pathname_slug_pattern)
     assert_empty config.skip_paths
     refute_predicate config, :rbac_enabled?
@@ -78,6 +80,7 @@ class ConfigurationTest < Minitest::Test
     expected_payload_mapping = {
       user_id: :user_id,
       tenant_id: :tenant_id,
+      tenant_slug: :subdomain,
       subdomain: :subdomain,
       pathname_slugs: :pathname_slugs,
       role_ids: :role_ids,
@@ -87,6 +90,34 @@ class ConfigurationTest < Minitest::Test
 
     assert_equal({ error: 'Authentication required' }, config.unauthorized_response)
     assert_equal({ error: 'Access denied' }, config.forbidden_response)
+  end
+
+  def test_strict_authentication_header_configuration
+    config = RackJwtAegis::Configuration.new(
+      jwt_secret: 'test-secret',
+      require_authentication_headers: true,
+      tenant_id_header_name: 'X-Organization-Id',
+      tenant_slug_header_name: 'X-Organization-Slug',
+      user_id_header_name: 'X-User-Id',
+    )
+
+    assert_predicate config, :require_authentication_headers?
+    assert_equal 'X-Organization-Id', config.tenant_id_header_name
+    assert_equal 'X-Organization-Slug', config.tenant_slug_header_name
+    assert_equal 'X-User-Id', config.user_id_header_name
+  end
+
+  def test_circuit_breaker_configuration
+    config = RackJwtAegis::Configuration.new(
+      jwt_secret: 'test-secret',
+      circuit_breaker_enabled: true,
+      circuit_breaker_failure_threshold: 2,
+      circuit_breaker_cooldown_seconds: 5,
+    )
+
+    assert_predicate config, :circuit_breaker_enabled?
+    assert_equal 2, config.circuit_breaker_failure_threshold
+    assert_equal 5, config.circuit_breaker_cooldown_seconds
   end
 
   def test_unknown_configuration_option

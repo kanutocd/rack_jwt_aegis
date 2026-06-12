@@ -17,6 +17,7 @@ class RequestContextTest < Minitest::Test
     assert_equal 'rack_jwt_aegis.user_id', RackJwtAegis::RequestContext::USER_ID_KEY
     assert_equal 'rack_jwt_aegis.tenant_id', RackJwtAegis::RequestContext::TENANT_ID_KEY
     assert_equal 'rack_jwt_aegis.subdomain', RackJwtAegis::RequestContext::SUBDOMAIN_KEY
+    assert_equal RackJwtAegis::RequestContext::SUBDOMAIN_KEY, RackJwtAegis::RequestContext::TENANT_SLUG_KEY
     assert_equal 'rack_jwt_aegis.pathname_slugs', RackJwtAegis::RequestContext::PATHNAME_SLUGS_KEY
     assert_equal 'rack_jwt_aegis.authenticated', RackJwtAegis::RequestContext::AUTHENTICATED_KEY
   end
@@ -152,6 +153,16 @@ class RequestContextTest < Minitest::Test
     assert_equal 789, RackJwtAegis::RequestContext.tenant_id(env)
   end
 
+  def test_tenant_slug_class_method
+    env = {}
+
+    assert_nil RackJwtAegis::RequestContext.tenant_slug(env)
+
+    env[RackJwtAegis::RequestContext::TENANT_SLUG_KEY] = 'acme-village'
+
+    assert_equal 'acme-village', RackJwtAegis::RequestContext.tenant_slug(env)
+  end
+
   def test_subdomain_class_method
     env = {}
 
@@ -192,6 +203,37 @@ class RequestContextTest < Minitest::Test
     request.expects(:env).returns(env)
 
     assert_equal 654, RackJwtAegis::RequestContext.current_tenant_id(request)
+  end
+
+  def test_current_tenant_slug_class_method
+    request = mock
+    env = { RackJwtAegis::RequestContext::TENANT_SLUG_KEY => 'acme-village' }
+    request.expects(:env).returns(env)
+
+    assert_equal 'acme-village', RackJwtAegis::RequestContext.current_tenant_slug(request)
+  end
+
+  def test_set_context_with_required_authentication_headers
+    config = RackJwtAegis::Configuration.new(basic_config.merge(
+                                               require_authentication_headers: true,
+                                               payload_mapping: {
+                                                 user_id: :user_id,
+                                                 tenant_id: :organization_id,
+                                                 tenant_slug: :organization_slug,
+                                               },
+                                             ))
+    context = RackJwtAegis::RequestContext.new(config)
+    env = {}
+    payload = {
+      'user_id' => 'user-123',
+      'organization_id' => 'org-123',
+      'organization_slug' => 'acme-village',
+    }
+
+    context.set_context(env, payload)
+
+    assert_equal 'org-123', RackJwtAegis::RequestContext.tenant_id(env)
+    assert_equal 'acme-village', RackJwtAegis::RequestContext.tenant_slug(env)
   end
 
   def test_has_company_access_class_method

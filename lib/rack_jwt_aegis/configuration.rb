@@ -51,9 +51,29 @@ module RackJwtAegis
     # @return [Boolean] true if tenant id validation is enabled
     attr_accessor :validate_tenant_id
 
+    # Whether authenticated requests must include all identity/tenant headers
+    # @return [Boolean] true if strict authenticated request headers are required
+    attr_accessor :require_authentication_headers
+
+    # Whether JWTs must include expiration-related claims
+    # @return [Boolean] true if exp and iat claims are required
+    attr_accessor :require_expiration_claims
+
     # Whether RBAC (Role-Based Access Control) is enabled
     # @return [Boolean] true if RBAC is enabled
     attr_accessor :rbac_enabled
+
+    # Whether unexpected errors should trip a fail-fast circuit breaker
+    # @return [Boolean] true if circuit breaker is enabled
+    attr_accessor :circuit_breaker_enabled
+
+    # Number of unexpected failures before the circuit opens
+    # @return [Integer] failure threshold
+    attr_accessor :circuit_breaker_failure_threshold
+
+    # Seconds to fail fast before allowing another request attempt
+    # @return [Integer] cooldown seconds
+    attr_accessor :circuit_breaker_cooldown_seconds
 
     # @!endgroup
 
@@ -62,6 +82,14 @@ module RackJwtAegis
     # The HTTP header name containing the tenant ID
     # @return [String] the tenant ID header name (default: 'X-Tenant-Id')
     attr_accessor :tenant_id_header_name
+
+    # The HTTP header name containing the tenant slug
+    # @return [String] the tenant slug header name
+    attr_accessor :tenant_slug_header_name
+
+    # The HTTP header name containing the user ID
+    # @return [String] the user ID header name
+    attr_accessor :user_id_header_name
 
     # The regular expression pattern to extract pathname slugs
     # @return [Regexp] the pathname slug pattern (default: /^\/api\/v1\/([^\/]+)\//)
@@ -77,11 +105,12 @@ module RackJwtAegis
 
     # @!group Path Management
 
-    # Array of paths that should skip JWT authentication
-    # @return [Array<String, Regexp>] paths to skip authentication for
+    # Array of routes that should skip JWT authentication
+    # @return [Array<String, Regexp, Hash>] routes to skip authentication for
     # @example
     #   ['/health', '/api/public', /^\/assets/]
-    attr_accessor :skip_paths
+    #   [{ path: '/api/v1/sessions', verbs: [:post] }]
+    attr_reader :skip_paths, :skip_routes
 
     # @!endgroup
 
@@ -153,7 +182,8 @@ module RackJwtAegis
     # @option options [String] :tenant_id_header_name ('X-Tenant-Id') tenant ID header name
     # @option options [Regexp] :pathname_slug_pattern default pattern for pathname slugs
     # @option options [Hash] :payload_mapping mapping of JWT claim names
-    # @option options [Array<String, Regexp>] :skip_paths ([]) paths to skip authentication
+    # @option options [Array<String, Regexp>] :skip_paths ([]) legacy paths to skip authentication
+    # @option options [Array<String, Regexp, Hash>] :skip_routes ([]) routes to skip authentication
     # @option options [Symbol] :rbac_cache_store cache adapter type
     # @option options [Hash] :rbac_cache_store_options cache configuration options
     # @option options [Symbol] :permissions_cache_store cache adapter type
@@ -182,6 +212,12 @@ module RackJwtAegis
       config_boolean?(rbac_enabled)
     end
 
+    # Check if circuit breaker is enabled
+    # @return [Boolean] true if circuit breaker is enabled
+    def circuit_breaker_enabled?
+      config_boolean?(circuit_breaker_enabled)
+    end
+
     # Check if subdomain validation is enabled
     # @return [Boolean] true if subdomain validation is enabled
     def validate_subdomain?
@@ -200,27 +236,50 @@ module RackJwtAegis
       config_boolean?(validate_tenant_id)
     end
 
+    # Check if strict authenticated request headers are required
+    # @return [Boolean] true if required auth headers are enabled
+    def require_authentication_headers?
+      config_boolean?(require_authentication_headers)
+    end
+
+    # Check if exp and iat claims are required
+    # @return [Boolean] true if expiration claims are required
+    def require_expiration_claims?
+      config_boolean?(require_expiration_claims)
+    end
+
     # Check if debug mode is enabled
     # @return [Boolean] true if debug mode is enabled
     def debug_mode?
       config_boolean?(debug_mode)
     end
 
+    def skip_paths=(value)
+      @skip_paths = value
+      @normalized_skip_routes = nil
+    end
+
+    def skip_routes=(value)
+      @skip_routes = value
+      @normalized_skip_routes = nil
+    end
+
     # Check if the given path should skip JWT authentication
     # @param path [String] the request path to check
-    # @return [Boolean] true if the path should be skipped
+    # @return [Boolean] true if the path should be skipped for any method
     def skip_path?(path)
-      return false if skip_paths.nil? || skip_paths.empty?
+      skip_request?(path)
+    end
 
-      skip_paths.any? do |skip_path|
-        case skip_path
-        when String
-          path == skip_path
-        when Regexp
-          skip_path.match?(path)
-        else
-          false
-        end
+    # Check if the given request should skip JWT authentication
+    # @param path [String] the request path to check
+    # @param request_method [String, nil] the HTTP method to check
+    # @return [Boolean] true if the route should be skipped
+    def skip_request?(path, request_method = nil)
+      return false if normalized_skip_routes.empty?
+
+      normalized_skip_routes.any? do |skip_route|
+        route_matches?(skip_route, path, request_method)
       end
     end
 
@@ -252,12 +311,18 @@ module RackJwtAegis
       @validate_subdomain = false
       @validate_pathname_slug = false
       @validate_tenant_id = false
+      @require_authentication_headers = false
+      @require_expiration_claims = false
       @tenant_id_header_name = 'X-Tenant-Id'
+      @tenant_slug_header_name = 'X-Tenant-Slug'
+      @user_id_header_name = 'X-User-Id'
       @pathname_slug_pattern = %r{^/api/v1/([^/]+)/}
       @skip_paths = []
+      @skip_routes = []
       @payload_mapping = {
         user_id: :user_id,
         tenant_id: :tenant_id,
+        tenant_slug: :subdomain,
         subdomain: :subdomain,
         pathname_slugs: :pathname_slugs,
         role_ids: :role_ids,
@@ -265,6 +330,9 @@ module RackJwtAegis
       @unauthorized_response = { error: 'Authentication required' }
       @forbidden_response = { error: 'Access denied' }
       @rbac_enabled = false
+      @circuit_breaker_enabled = false
+      @circuit_breaker_failure_threshold = 5
+      @circuit_breaker_cooldown_seconds = 30
       @cached_permissions_ttl = 1800 # 30 minutes default
       @rbac_cache_store = if Object.const_defined?(:Rails) && Rails.const_defined?(:Application)
                             @debug_mode = Rails.env.development?
@@ -283,6 +351,8 @@ module RackJwtAegis
       validate_payload_mapping!
       validate_cache_settings!
       validate_multi_tenant_settings!
+      validate_authentication_header_settings!
+      validate_circuit_breaker_settings!
     end
 
     def validate_jwt_settings!
@@ -337,6 +407,99 @@ module RackJwtAegis
       error_msg << 'payload_mapping must include :pathname_slugs' unless payload_mapping.key?(:pathname_slugs)
       error_msg << 'pathname_slug_pattern is required' if pathname_slug_pattern.to_s.empty?
       raise ConfigurationError, "#{error_msg.join(' and ')} when validate_pathname_slug is true" if error_msg.any?
+    end
+
+    def normalized_skip_routes
+      @normalized_skip_routes ||= normalize_skip_routes
+    end
+
+    def normalize_skip_routes
+      normalize_skip_route_entries(skip_paths) + normalize_skip_route_entries(skip_routes)
+    end
+
+    def normalize_skip_route_entries(entries)
+      Array(entries).each_with_object([]) do |entry, normalized|
+        case entry
+        when String, Regexp
+          normalized << { path: entry, methods: nil }
+        when Hash
+          path = entry.key?(:path) ? entry[:path] : entry['path']
+          next if path.nil?
+
+          verbs = if entry.key?(:verbs)
+                    entry[:verbs]
+                  elsif entry.key?('verbs')
+                    entry['verbs']
+                  elsif entry.key?(:verb)
+                    entry[:verb]
+                  elsif entry.key?('verb')
+                    entry['verb']
+                  elsif entry.key?(:methods)
+                    entry[:methods]
+                  elsif entry.key?('methods')
+                    entry['methods']
+                  end
+
+          normalized << { path: path, verbs: normalize_skip_verbs(verbs) }
+        end
+      end
+    end
+
+    def normalize_skip_verbs(verbs)
+      return nil if verbs.nil?
+      return nil if verbs.respond_to?(:empty?) && verbs.empty?
+      return nil if verbs.is_a?(String) && verbs.strip.empty?
+
+      normalized = Array(verbs).flatten.compact.map do |verb|
+        verb.to_s.strip.upcase
+      end.reject(&:empty?)
+
+      normalized.empty? ? nil : normalized.uniq
+    end
+
+    def route_matches?(skip_route, path, request_method)
+      path_matches = case skip_route[:path]
+                     when String
+                       skip_route[:path] == path
+                     when Regexp
+                       skip_route[:path].match?(path)
+                     else
+                       false
+                     end
+
+      return false unless path_matches
+
+      verbs = skip_route[:verbs]
+      return true if verbs.nil?
+
+      return false if request_method.nil?
+
+      verbs.include?(request_method.to_s.upcase)
+    end
+
+    def validate_authentication_header_settings!
+      return unless require_authentication_headers?
+
+      error_msg = []
+      error_msg << 'payload_mapping must include :user_id' unless payload_mapping.key?(:user_id)
+      error_msg << 'payload_mapping must include :tenant_id' unless payload_mapping.key?(:tenant_id)
+      error_msg << 'payload_mapping must include :tenant_slug' unless payload_mapping.key?(:tenant_slug)
+      error_msg << 'tenant_id_header_name is required' if tenant_id_header_name.to_s.strip.empty?
+      error_msg << 'tenant_slug_header_name is required' if tenant_slug_header_name.to_s.strip.empty?
+      error_msg << 'user_id_header_name is required' if user_id_header_name.to_s.strip.empty?
+      raise ConfigurationError, "#{error_msg.join(' and ')} when require_authentication_headers is true" if error_msg.any?
+    end
+
+    def validate_circuit_breaker_settings!
+      return unless circuit_breaker_enabled?
+
+      if circuit_breaker_failure_threshold.to_i <= 0
+        raise ConfigurationError, 'circuit_breaker_failure_threshold must be greater than 0'
+      end
+
+      return if circuit_breaker_cooldown_seconds.to_i >= 0
+
+      raise ConfigurationError, 'circuit_breaker_cooldown_seconds must be greater than or equal to 0'
     end
   end
 end

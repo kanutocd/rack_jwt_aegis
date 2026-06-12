@@ -3,6 +3,7 @@
 require_relative 'rack_jwt_aegis/version'
 require_relative 'rack_jwt_aegis/configuration'
 require_relative 'rack_jwt_aegis/debug_logger'
+require_relative 'rack_jwt_aegis/circuit_breaker'
 require_relative 'rack_jwt_aegis/middleware'
 require_relative 'rack_jwt_aegis/jwt_validator'
 require_relative 'rack_jwt_aegis/multi_tenant_validator'
@@ -23,7 +24,7 @@ require_relative 'rack_jwt_aegis/response_builder'
 # - RBAC with flexible permission caching
 # - Multiple cache adapter support (Memory, Redis, Memcached, SolidCache)
 # - Request context management
-# - Configurable skip paths and custom validators
+# - Configurable skip routes and custom validators
 #
 # @example Basic usage
 #   use RackJwtAegis::Middleware, jwt_secret: ENV['JWT_SECRET']

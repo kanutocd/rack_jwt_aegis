@@ -37,6 +37,7 @@ Gem::Specification.new do |spec|
   # Runtime dependencies
   spec.add_dependency 'jwt', '>= 2.10', '< 4.0'
   spec.add_dependency 'rack', '>= 3.2'
+  spec.add_dependency 'ratomic', '>= 0.4.1', '< 0.5'
 
   # For more information and examples about making a new gem, check out our
   # guide at: https://bundler.io/guides/creating_gem.html

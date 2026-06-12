@@ -24,7 +24,7 @@ module RackJwtAegis
   #     validate_subdomain: true,
   #     rbac_enabled: true,
   #     cache_store: :redis,
-  #     skip_paths: ['/health', '/api/public/*']
+  #     skip_routes: [{ path: '/health' }, { path: '/api/v1/sessions', verbs: [:post] }]
   #   }
   class Middleware
     include DebugLogger
@@ -43,6 +43,7 @@ module RackJwtAegis
       @rbac_manager = RbacManager.new(@config) if @config.rbac_enabled?
       @response_builder = ResponseBuilder.new(@config)
       @request_context = RequestContext.new(@config)
+      @circuit_breaker = build_circuit_breaker
 
       debug_log("Middleware initialized with features: #{enabled_features}")
     end
@@ -58,10 +59,15 @@ module RackJwtAegis
 
       debug_log("Processing request: #{request.request_method} #{request.path}")
 
-      # Step 1: Check if path should be skipped
-      if @config.skip_path?(request.path)
-        debug_log("Skipping authentication for path: #{request.path}")
-        return @app.call(env)
+      unless circuit_allows_request?
+        debug_log('Circuit breaker open; failing fast')
+        return @response_builder.error_response('Circuit breaker open', 503)
+      end
+
+      # Step 1: Check if route should be skipped
+      if @config.skip_request?(request.path, request.request_method)
+        debug_log("Skipping authentication for route: #{request.request_method} #{request.path}")
+        return call_app(env)
       end
 
       begin
@@ -101,7 +107,7 @@ module RackJwtAegis
         debug_log('Request context set successfully')
 
         # Continue to application
-        @app.call(env)
+        call_app(env)
       rescue AuthenticationError => e
         debug_log("Authentication failed: #{e.message}")
         @response_builder.unauthorized_response(e.message)
@@ -109,6 +115,7 @@ module RackJwtAegis
         debug_log("Authorization failed: #{e.message}")
         @response_builder.forbidden_response(e.message)
       rescue StandardError => e
+        record_circuit_failure
         debug_log("Unexpected error: #{e.message}")
         if @config.debug_mode?
           @response_builder.error_response("Internal error: #{e.message}", 500)
@@ -144,7 +151,31 @@ module RackJwtAegis
     #
     # @return [Boolean] true if subdomain or pathname slug validation is enabled
     def multi_tenant_enabled?
-      @config.validate_tenant_id? || @config.validate_subdomain? || @config.validate_pathname_slug?
+      @config.validate_tenant_id? || @config.validate_subdomain? || @config.validate_pathname_slug? ||
+        @config.require_authentication_headers?
+    end
+
+    def build_circuit_breaker
+      return nil unless @config.circuit_breaker_enabled?
+
+      CircuitBreaker.new(
+        failure_threshold: @config.circuit_breaker_failure_threshold,
+        cooldown_seconds: @config.circuit_breaker_cooldown_seconds,
+      )
+    end
+
+    def circuit_allows_request?
+      @circuit_breaker.nil? || @circuit_breaker.allow_request?
+    end
+
+    def call_app(env)
+      response = @app.call(env)
+      @circuit_breaker&.record_success
+      response
+    end
+
+    def record_circuit_failure
+      @circuit_breaker&.record_failure
     end
 
     # Generate a string describing enabled features for logging
@@ -155,6 +186,8 @@ module RackJwtAegis
       features << 'TenantId' if @config.validate_tenant_id?
       features << 'Subdomain' if @config.validate_subdomain?
       features << 'PathnameSlug' if @config.validate_pathname_slug?
+      features << 'StrictHeaders' if @config.require_authentication_headers?
+      features << 'CircuitBreaker' if @config.circuit_breaker_enabled?
       features << 'RBAC' if @config.rbac_enabled?
       features.join(', ')
     end

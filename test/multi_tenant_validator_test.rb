@@ -194,6 +194,94 @@ class MultiTenantValidatorTest < Minitest::Test
     validator.validate(request, payload)
   end
 
+  def test_validate_required_authentication_headers_success
+    config = RackJwtAegis::Configuration.new(basic_config.merge(
+                                               require_authentication_headers: true,
+                                               tenant_id_header_name: 'X-Organization-Id',
+                                               tenant_slug_header_name: 'X-Organization-Slug',
+                                               user_id_header_name: 'X-User-Id',
+                                               payload_mapping: {
+                                                 user_id: :user_id,
+                                                 tenant_id: :organization_id,
+                                                 tenant_slug: :organization_slug,
+                                               },
+                                             ))
+    validator = RackJwtAegis::MultiTenantValidator.new(config)
+    request = rack_request(headers: {
+                             'X-Organization-Id' => 'org-123',
+                             'X-Organization-Slug' => 'acme-village',
+                             'X-User-Id' => 'user-456',
+                           })
+    payload = {
+      'user_id' => 'user-456',
+      'organization_id' => 'org-123',
+      'organization_slug' => 'acme-village',
+    }
+
+    validator.validate(request, payload)
+  end
+
+  def test_validate_required_authentication_headers_missing_header
+    config = RackJwtAegis::Configuration.new(basic_config.merge(
+                                               require_authentication_headers: true,
+                                               tenant_id_header_name: 'X-Organization-Id',
+                                               tenant_slug_header_name: 'X-Organization-Slug',
+                                               user_id_header_name: 'X-User-Id',
+                                               payload_mapping: {
+                                                 user_id: :user_id,
+                                                 tenant_id: :organization_id,
+                                                 tenant_slug: :organization_slug,
+                                               },
+                                             ))
+    validator = RackJwtAegis::MultiTenantValidator.new(config)
+    request = rack_request(headers: {
+                             'X-Organization-Id' => 'org-123',
+                             'X-User-Id' => 'user-456',
+                           })
+    payload = {
+      'user_id' => 'user-456',
+      'organization_id' => 'org-123',
+      'organization_slug' => 'acme-village',
+    }
+
+    error = assert_raises(RackJwtAegis::AuthorizationError) do
+      validator.validate(request, payload)
+    end
+
+    assert_equal 'Required authentication header missing: X-Organization-Slug', error.message
+  end
+
+  def test_validate_required_authentication_headers_mismatch
+    config = RackJwtAegis::Configuration.new(basic_config.merge(
+                                               require_authentication_headers: true,
+                                               tenant_id_header_name: 'X-Organization-Id',
+                                               tenant_slug_header_name: 'X-Organization-Slug',
+                                               user_id_header_name: 'X-User-Id',
+                                               payload_mapping: {
+                                                 user_id: :user_id,
+                                                 tenant_id: :organization_id,
+                                                 tenant_slug: :organization_slug,
+                                               },
+                                             ))
+    validator = RackJwtAegis::MultiTenantValidator.new(config)
+    request = rack_request(headers: {
+                             'X-Organization-Id' => 'org-123',
+                             'X-Organization-Slug' => 'wrong-village',
+                             'X-User-Id' => 'user-456',
+                           })
+    payload = {
+      'user_id' => 'user-456',
+      'organization_id' => 'org-123',
+      'organization_slug' => 'acme-village',
+    }
+
+    error = assert_raises(RackJwtAegis::AuthorizationError) do
+      validator.validate(request, payload)
+    end
+
+    assert_match(/Tenant slug header mismatch/, error.message)
+  end
+
   def test_validate_tenant_id_string_to_int_match
     config = RackJwtAegis::Configuration.new(basic_config.merge(tenant_id_header_name: 'X-Tenant-Id'))
     validator = RackJwtAegis::MultiTenantValidator.new(config)
