@@ -50,10 +50,10 @@ GEM
       rack (>= 1.3)
     rainbow (3.1.1)
     rake (13.4.2)
-    ratomic (0.4.1-aarch64-linux)
-    ratomic (0.4.1-arm64-darwin)
-    ratomic (0.4.1-x86_64-darwin)
-    ratomic (0.4.1-x86_64-linux)
+    ratomic (0.4.2-aarch64-linux)
+    ratomic (0.4.2-arm64-darwin)
+    ratomic (0.4.2-x86_64-darwin)
+    ratomic (0.4.2-x86_64-linux)
     rdoc (7.2.0)
       erb
       psych (>= 4.0.0)
@@ -161,10 +161,10 @@ CHECKSUMS
   rack_jwt_aegis (1.1.1)
   rainbow (3.1.1) sha256=039491aa3a89f42efa1d6dec2fc4e62ede96eb6acd95e52f1ad581182b79bc6a
   rake (13.4.2) sha256=cb825b2bd5f1f8e91ca37bddb4b9aaf345551b4731da62949be002fa89283701
-  ratomic (0.4.1-aarch64-linux) sha256=86cfdaa52e2218ef4911ae65d13808f838672d96341faff7a3f60843c6963514
-  ratomic (0.4.1-arm64-darwin) sha256=898b583ccf95b28c99394fcff537c354ce395fcb7e8222e9893b854376d0c676
-  ratomic (0.4.1-x86_64-darwin) sha256=29bfe759a77ae616100e686cbeabb863836a212d6804befdfa39aad7522236b4
-  ratomic (0.4.1-x86_64-linux) sha256=c4ad6d361a39f2f21ff90569ddbbc7b09e4a8d312687623da5f49ee36e72a0af
+  ratomic (0.4.2-aarch64-linux) sha256=a9b21ac244ff38611172379b690eb5e11a60a28f9e7fd2b5a358ac1838a08b3f
+  ratomic (0.4.2-arm64-darwin) sha256=cb14c5cceb4cf5d271466b57a7cc4e905c458b6926826a2c610e85e97de5aaf0
+  ratomic (0.4.2-x86_64-darwin) sha256=8064e908957776e84d4901286d7f190b4f2e39c7c954702ec551d93c9cf2ecec
+  ratomic (0.4.2-x86_64-linux) sha256=908aa7f515c042807f33da62889dfb637ed910f0c7ef03bf37edc3473d572ad3
   rdoc (7.2.0) sha256=8650f76cd4009c3b54955eb5d7e3a075c60a57276766ebf36f9085e8c9f23192
   redcarpet (3.6.1) sha256=d444910e6aa55480c6bcdc0cdb057626e8a32c054c29e793fa642ba2f155f445
   redis (5.4.1) sha256=b5e675b57ad22b15c9bcc765d5ac26f60b675408af916d31527af9bd5a81faae
