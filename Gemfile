@@ -16,7 +16,7 @@ group :development do
   gem 'rubocop-minitest', '~> 0.38.1'
   gem 'rubocop-performance', '~> 1.25'
   gem 'rubocop-rake', '~> 0.7.1'
-  gem 'simplecov', '~> 0.22.0'
+  gem 'simplecov', '~> 1.1.1'
   gem 'vcr', '~> 6.3'
   gem 'yard', '~> 0.9.38'
   # Cache adapters for testing
