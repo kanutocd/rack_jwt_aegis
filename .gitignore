@@ -13,3 +13,4 @@ test/reports/
 /.history/
 *.gem
 /examples/
+Gemfile.lock
