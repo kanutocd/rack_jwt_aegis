@@ -4,8 +4,11 @@
 require 'simplecov'
 
 SimpleCov.start do
-  # Set minimum coverage threshold (achieved excellent coverage for JWT middleware gem)
-  minimum_coverage 89
+  # Track branch coverage before configuring its threshold.
+  enable_coverage :branch if RUBY_VERSION >= '2.5'
+
+  # Keep both executable line and branch coverage at or above the project bar.
+  minimum_coverage line: 99, branch: 99
   # NOTE: minimum_coverage_by_file disabled due to some utility files having low individual coverage
 
   # Coverage output directory
@@ -17,9 +20,6 @@ SimpleCov.start do
   add_filter '/bin/'
   add_filter 'version.rb'
   add_filter '/examples/'
-
-  # Track branch coverage in addition to line coverage (Ruby 2.5+)
-  enable_coverage :branch if RUBY_VERSION >= '2.5'
 
   # Format output
   formatter SimpleCov::Formatter::MultiFormatter.new([
