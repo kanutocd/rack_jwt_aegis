@@ -55,6 +55,10 @@ module RackJwtAegis
     # @return [Boolean] true if strict authenticated request headers are required
     attr_accessor :require_authentication_headers
 
+    # Whether HTTP OPTIONS preflight requests should bypass JWT authentication
+    # @return [Boolean] true if OPTIONS requests are treated as CORS preflight
+    attr_accessor :skip_options_requests
+
     # Whether JWTs must include expiration-related claims
     # @return [Boolean] true if exp and iat claims are required
     attr_accessor :require_expiration_claims
@@ -178,6 +182,7 @@ module RackJwtAegis
     # @option options [String] :jwt_algorithm ('HS256') JWT algorithm to use
     # @option options [Boolean] :validate_subdomain (false) enable subdomain validation
     # @option options [Boolean] :validate_pathname_slug (false) enable pathname slug validation
+    # @option options [Boolean] :skip_options_requests (false) bypass JWT authentication for OPTIONS requests
     # @option options [Boolean] :rbac_enabled (false) enable RBAC authorization
     # @option options [String] :tenant_id_header_name ('X-Tenant-Id') tenant ID header name
     # @option options [Regexp] :pathname_slug_pattern default pattern for pathname slugs
@@ -240,6 +245,12 @@ module RackJwtAegis
     # @return [Boolean] true if required auth headers are enabled
     def require_authentication_headers?
       config_boolean?(require_authentication_headers)
+    end
+
+    # Check if OPTIONS requests bypass JWT authentication
+    # @return [Boolean] true if CORS preflight requests are skipped
+    def skip_options_requests?
+      config_boolean?(skip_options_requests)
     end
 
     # Check if exp and iat claims are required
@@ -312,6 +323,7 @@ module RackJwtAegis
       @validate_pathname_slug = false
       @validate_tenant_id = false
       @require_authentication_headers = false
+      @skip_options_requests = false
       @require_expiration_claims = false
       @tenant_id_header_name = 'X-Tenant-Id'
       @tenant_slug_header_name = 'X-Tenant-Slug'

@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Added
+
+- Added `skip_options_requests` to bypass JWT authentication for CORS preflight
+  requests while leaving ordinary requests protected.
+- Documented the intended middleware ordering: `Rack::Cors` must run before
+  `RackJwtAegis::Middleware`.
+
 ## [1.1.1] - 2026-06-13
 
 ### 🚀 Added

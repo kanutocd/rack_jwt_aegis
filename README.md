@@ -15,7 +15,8 @@ JWT authentication and authorization middleware for hierarchical multi-tenant Ra
 - Subdomain-based tenant isolation for top-level tenants
 - URL pathname slug access control for sub-level tenants
 - **RBAC (Role-Based Access Control)** with flexible role extraction from JWT payloads
-- Configurable path exclusions for public endpoints
+- Configurable route exclusions for public endpoints
+- Optional automatic bypass for browser CORS preflight requests
 - **Flexible payload mapping** for custom JWT claim names
 - Custom payload validation
 - Debug mode for development
@@ -79,14 +80,35 @@ Rack JWT Aegis includes a command-line tool for generating secure JWT secrets:
 ### Rails Application
 
 ```ruby
-  # config/application.rb
-  config.middleware.insert_before 0, RackJwtAegis::Middleware, {
+# config/initializers/cors.rb
+Rails.application.config.middleware.insert_before 0, Rack::Cors do
+  allow do
+    origins 'https://app.example.com'
+    resource '*', headers: :any,
+      methods: %i[get post put patch delete options head]
+  end
+end
+
+# config/initializers/rack_jwt_aegis.rb
+Rails.application.config.middleware.insert_after Rack::Cors, RackJwtAegis::Middleware, {
     jwt_secret: ENV['JWT_SECRET'],
     validate_tenant_id: true,
     tenant_id_header_name: 'X-Tenant-Id',
-    skip_paths: ['/api/v1/login', '/health']
+    # Browser OPTIONS preflight requests do not carry bearer credentials.
+    skip_options_requests: true,
+    skip_routes: [
+      { path: '/api/v1/login', verbs: [:post] },
+      { path: '/health' }
+    ]
   }
 ```
+
+`Rack::Cors` should run before `RackJwtAegis::Middleware` in the Rack stack.
+It can then validate the request origin, requested method, and requested
+headers and handle valid preflight requests before JWT authentication runs.
+`skip_options_requests: true` is an additional middleware-level safeguard: it
+skips JWT authentication for `OPTIONS` requests only. It does not make any
+non-`OPTIONS` request public, and it does not replace CORS validation.
 
 ### Sinatra Application
 
@@ -97,7 +119,10 @@ Rack JWT Aegis includes a command-line tool for generating secure JWT secrets:
     jwt_secret: ENV['JWT_SECRET'],
     validate_tenant_id: true,
     tenant_id_header_name: 'X-Tenant-Id',
-    skip_paths: ['/login', '/health']
+    skip_routes: [
+      { path: '/login', verbs: [:post] },
+      { path: '/health' }
+    ]
   }
 ```
 
@@ -142,8 +167,12 @@ RackJwtAegis::Middleware.new(app, {
     role_ids: :role_ids,
   },
 
-  # Path Configuration
-  skip_paths: ['/health', '/api/v1/login'],
+  # Route Configuration
+  skip_options_requests: false, # Set true when Rack::Cors handles browser preflight requests
+  skip_routes: [
+    { path: '/health' },
+    { path: '/api/v1/login', verbs: [:post] }
+  ],
   pathname_slug_pattern: /^\/api\/v1\/([^\/]+)\//,  # Default pattern
 
   # RBAC Configuration

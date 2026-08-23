@@ -65,7 +65,7 @@ module RackJwtAegis
       end
 
       # Step 1: Check if route should be skipped
-      if @config.skip_request?(request.path, request.request_method)
+      if preflight_request?(request) || @config.skip_request?(request.path, request.request_method)
         debug_log("Skipping authentication for route: #{request.request_method} #{request.path}")
         return call_app(env)
       end
@@ -153,6 +153,10 @@ module RackJwtAegis
     def multi_tenant_enabled?
       @config.validate_tenant_id? || @config.validate_subdomain? || @config.validate_pathname_slug? ||
         @config.require_authentication_headers?
+    end
+
+    def preflight_request?(request)
+      @config.skip_options_requests? && request.request_method == 'OPTIONS'
     end
 
     def build_circuit_breaker

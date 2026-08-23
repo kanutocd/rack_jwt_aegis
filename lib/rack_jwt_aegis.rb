@@ -25,6 +25,7 @@ require_relative 'rack_jwt_aegis/response_builder'
 # - Multiple cache adapter support (Memory, Redis, Memcached, SolidCache)
 # - Request context management
 # - Configurable skip routes and custom validators
+# - Optional automatic bypass for CORS preflight requests
 #
 # @example Basic usage
 #   use RackJwtAegis::Middleware, jwt_secret: ENV['JWT_SECRET']

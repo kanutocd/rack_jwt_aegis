@@ -49,6 +49,27 @@ class MiddlewareIntegrationTest < Minitest::Test
     assert_match(/authorization header missing/i, response['error'])
   end
 
+  def test_options_requests_are_skipped_when_configured
+    @app = Rack::Builder.new do
+      use RackJwtAegis::Middleware, {
+        jwt_secret: 'test-secret',
+        skip_options_requests: true,
+      }
+
+      run ->(_env) { [204, {}, []] }
+    end.to_app
+
+    response = custom_request 'OPTIONS', '/api/users'
+
+    assert_equal 204, response.status
+  end
+
+  def test_options_requests_remain_protected_by_default
+    response = custom_request 'OPTIONS', '/api/users'
+
+    assert_equal 401, response.status
+  end
+
   def test_validates_bearer_token_format
     header 'Authorization', 'Invalid format'
     get '/api/users'
