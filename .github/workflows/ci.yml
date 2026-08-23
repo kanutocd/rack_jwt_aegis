@@ -12,10 +12,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ruby-version: ["3.2", "3.3", "3.4"]
+        ruby-version: ["3.2", "3.3", "3.4", "4.0"]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up Ruby ${{ matrix.ruby-version }}
         uses: ruby/setup-ruby@v1
@@ -30,7 +30,7 @@ jobs:
         if: matrix.ruby-version == '3.4'
         uses: codecov/codecov-action@v5
         with:
-          files: ./coverage/coverage.xml
+          files: ./coverage/.resultset.json
           flags: unittests
           name: codecov-umbrella
           fail_ci_if_error: false
@@ -38,7 +38,7 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
@@ -60,10 +60,10 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest]
-        ruby-version: ["3.2", "3.3", "3.4"]
+        ruby-version: ["3.2", "3.3", "3.4", "4.0"]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up Ruby ${{ matrix.ruby-version }}
         uses: ruby/setup-ruby@v1
