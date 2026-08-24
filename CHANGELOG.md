@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## [1.2.0] - 2026-08-24
+
 ### Added
 
 - Added `skip_options_requests` to bypass JWT authentication for CORS preflight
