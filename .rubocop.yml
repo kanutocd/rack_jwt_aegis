@@ -167,3 +167,6 @@ Minitest/RefuteFalse:
 
 Minitest/RefuteNil:
   Enabled: true
+
+Style/DirectiveScope:
+  Enabled: false
